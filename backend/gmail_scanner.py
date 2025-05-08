@@ -89,7 +89,9 @@ print(f"Using Gmail Query: {BASE_GMAIL_QUERY}")
 
 def _decode_email_body(parts: List[Dict[str, Any]]) -> str:
     """Helper to decode email body parts."""
-    body = ""
+    plain_text = ""
+    html_content = ""
+    
     if parts:
         for part in parts:
             mime_type = part.get('mimeType', '').lower()
@@ -97,23 +99,34 @@ def _decode_email_body(parts: List[Dict[str, Any]]) -> str:
                 data = part['body'].get('data')
                 if data:
                     try:
-                        body += base64.urlsafe_b64decode(data).decode('utf-8', errors='replace')
+                        plain_text += base64.urlsafe_b64decode(data).decode('utf-8', errors='replace')
                     except Exception:
                         pass # Ignore decoding errors for specific parts
             elif mime_type == 'text/html':
                 data = part['body'].get('data')
-                if data and not body: # Only use html if plain is not found or empty
+                if data:
                     try:
-                        html_content = base64.urlsafe_b64decode(data).decode('utf-8', errors='replace')
-                        # Basic strip tags - consider `bleach` or `BeautifulSoup` for robustness
-                        body += re.sub('<style.*?</style>', '', html_content, flags=re.DOTALL | re.IGNORECASE) # Remove style blocks
-                        body += re.sub('<[^>]+?>', ' ', body) # Replace tags with space
-                        body = re.sub(r'\s+', ' ', body).strip() # Consolidate whitespace
+                        html_content += base64.urlsafe_b64decode(data).decode('utf-8', errors='replace')
                     except Exception:
-                         pass # Ignore decoding errors
+                        pass # Ignore decoding errors
             elif 'parts' in part:
-                 # Recursive call for nested parts
-                 body += _decode_email_body(part['parts'])
+                # Recursive call for nested parts
+                nested_result = _decode_email_body(part['parts'])
+                if nested_result:
+                    # If the nested result contains plain text, add it
+                    plain_text += nested_result
+    
+    # Always prioritize plain text over HTML
+    if plain_text:
+        body = plain_text
+    elif html_content:
+        # Only use HTML if no plain text is available, and strip all HTML tags
+        body = re.sub('<style.*?</style>', '', html_content, flags=re.DOTALL | re.IGNORECASE) # Remove style blocks
+        body = re.sub('<[^>]+?>', ' ', body) # Replace tags with space
+        body = re.sub(r'\s+', ' ', body).strip() # Consolidate whitespace
+    else:
+        body = ""
+    
     # Replace non-breaking spaces and normalize line endings
     return body.replace('\xa0', ' ').replace('\r\n', ' \n').replace('\r', ' \n')
 
@@ -173,8 +186,15 @@ async def get_email_details(service, message_id: str) -> tuple[str | None, str |
             body_content = _decode_email_body(payload['parts'])
         elif payload.get('body') and payload['body'].get('data'):
             try:
-                body_content = base64.urlsafe_b64decode(payload['body']['data']).decode('utf-8', errors='replace')
-            except Exception: pass # Ignore decoding errors
+                data = payload['body'].get('data')
+                body_content = base64.urlsafe_b64decode(data).decode('utf-8', errors='replace')
+                # If this is HTML content, strip tags
+                if payload.get('mimeType', '').lower() == 'text/html':
+                    body_content = re.sub('<style.*?</style>', '', body_content, flags=re.DOTALL | re.IGNORECASE)
+                    body_content = re.sub('<[^>]+?>', ' ', body_content)
+                    body_content = re.sub(r'\s+', ' ', body_content).strip()
+            except Exception: 
+                pass # Ignore decoding errors
         
         # Fallback to snippet if body parsing is difficult/empty
         if not body_content and message_data.get('snippet'):
@@ -253,7 +273,7 @@ async def scan_gmail_for_rejections(access_token: str, user_profile: UserProfile
             try:
                 # Run blocking list call in executor
                 response = await loop.run_in_executor(
-                    None,
+                    None, 
                     lambda: service.users().messages().list(
                         userId='me', 
                         q=BASE_GMAIL_QUERY, 
@@ -287,16 +307,12 @@ async def scan_gmail_for_rejections(access_token: str, user_profile: UserProfile
         notable_rejections: List[SnippetDetail] = []
         processed_count = 0
         
-        # Track limits for notable rejections
-        fang_count = 0
-        have_interview_rejection = False
-
-        # Still use semaphore, but maybe keep it at 1 or slightly higher if stable
+        # Semaphore to control concurrency
         semaphore = asyncio.Semaphore(1) 
         tasks = []
 
         async def process_message_wrapper(msg_summary):
-            nonlocal processed_count, fang_count, have_interview_rejection
+            nonlocal processed_count
             async with semaphore:
                 msg_id = msg_summary['id']
                 # print(f"Processing message ID: {msg_id}") # Verbose logging if needed
@@ -311,35 +327,17 @@ async def scan_gmail_for_rejections(access_token: str, user_profile: UserProfile
                 is_reject, tags = is_rejection(body, sender_email) # Pass sender_email
                 if is_reject:
                     month_year_key = email_date.strftime("%Y-%m")
+                    # Only take the first 100 characters of plain text for snippet
                     snippet_text = (body[:97].strip() + '...') if len(body) > 100 else body.strip()
                     
                     # Use a placeholder if sender email couldn't be extracted
                     display_sender = sender_email if sender_email else "Unknown Sender"
                     
-                    # Check if this is a notable rejection we should include
-                    is_notable = False
-                    if "FANG" in tags and fang_count < 2:
-                        fang_count += 1
-                        is_notable = True
-                    elif "InterviewStage" in tags and not have_interview_rejection:
-                        have_interview_rejection = True
-                        is_notable = True
-                        
-                    # Only add to notable if we haven't hit our limits
-                    if is_notable:
-                        # Avoid duplicate notable entries
-                        is_duplicate = any(
-                            nr.sender == display_sender and nr.snippet == snippet_text 
-                            for nr in notable_rejections
-                        )
-                        if not is_duplicate:
-                            notable_rejections.append(SnippetDetail(sender=display_sender, snippet=snippet_text))
-
                     return {
                         "month_year": month_year_key,
                         "sender": display_sender,
                         "snippet": snippet_text,
-                        "is_notable": bool(tags)  # Keep this for stats, even if we don't add to list
+                        "tags": tags
                     }
             return None
 
@@ -353,10 +351,32 @@ async def scan_gmail_for_rejections(access_token: str, user_profile: UserProfile
         print(f"Finished processing messages in {end_time - start_time:.2f} seconds.")
 
         # --- Aggregate Results ---
+        all_rejections = []
         for result in processed_results:
             if result:
                 total_rejections += 1
                 rejections_per_month[result["month_year"]] = rejections_per_month.get(result["month_year"], 0) + 1
+                all_rejections.append(result)
+                
+        # Sort all rejections by priority: FANG first, then InterviewStage, then others
+        def rejection_priority(rejection):
+            if "FANG" in rejection["tags"]:
+                return 0  # Highest priority
+            elif "InterviewStage" in rejection["tags"]:
+                return 1  # Second priority
+            elif "TemplateFail" in rejection["tags"]:
+                return 2  # Third priority
+            return 3  # Lowest priority
+            
+        # Sort and take only top 3 for notable rejections
+        sorted_rejections = sorted(all_rejections, key=rejection_priority)
+        top_rejections = sorted_rejections[:3]  # Limit to top 3
+        
+        # Convert to SnippetDetail objects
+        notable_rejections = [
+            SnippetDetail(sender=r["sender"], snippet=r["snippet"]) 
+            for r in top_rejections
+        ]
 
         print(f"Scan complete. Total rejections found: {total_rejections}")
         return RejectionStats(
