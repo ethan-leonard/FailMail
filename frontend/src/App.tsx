@@ -1,8 +1,12 @@
 import { Routes, Route, Navigate, Outlet, useLocation } from 'react-router-dom';
 import { AuthProvider, useAuth } from './hooks/useAuth';
 import DashboardPage from './pages/Dashboard';
+import LandingPage from './pages/LandingPage';
 import GoogleLoginButton from './components/GoogleLoginButton'; // For the login page
 import { Container, Box, Typography, AppBar, Toolbar, CircularProgress, Avatar, Button } from '@mui/material';
+import { createTheme, ThemeProvider } from '@mui/material/styles';
+import CssBaseline from '@mui/material/CssBaseline';
+import { useEffect } from 'react';
 
 // A component to guard routes that require authentication
 const ProtectedRoute = () => {
@@ -71,52 +75,193 @@ const LoginPage = () => {
   );
 };
 
+// Theme for the entire app
+const theme = createTheme({
+  palette: {
+    mode: 'light',
+    primary: {
+      main: '#111111',
+    },
+    secondary: {
+      main: '#ffffff',
+    },
+    error: {
+      main: '#FF4D4D', // Main accent color
+    },
+    warning: {
+      main: '#F9CB28', // Secondary accent color
+    },
+    background: {
+      default: '#ffffff',
+      paper: '#ffffff',
+    },
+  },
+  typography: {
+    fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif",
+    h1: {
+      fontWeight: 800,
+    },
+    h2: {
+      fontWeight: 700,
+    },
+    h3: {
+      fontWeight: 700,
+    },
+    h4: {
+      fontWeight: 600,
+    },
+    h5: {
+      fontWeight: 600,
+    },
+    h6: {
+      fontWeight: 600,
+    },
+  },
+  shape: {
+    borderRadius: 12,
+  },
+  components: {
+    MuiButton: {
+      styleOverrides: {
+        root: {
+          textTransform: 'none',
+          borderRadius: '12px',
+          fontWeight: 600,
+        },
+        containedPrimary: {
+          backgroundColor: '#111111',
+          '&:hover': {
+            backgroundColor: '#333333',
+          },
+        },
+      },
+    },
+    MuiPaper: {
+      styleOverrides: {
+        root: {
+          borderRadius: '12px',
+          boxShadow: '0 4px 12px rgba(0,0,0,0.05)',
+        },
+      },
+    },
+  },
+});
+
 function App() {
+  // Apply the theme
+  useEffect(() => {
+    // Set meta theme color for mobile browsers
+    const metaThemeColor = document.querySelector("meta[name=theme-color]");
+    if (metaThemeColor) {
+      metaThemeColor.setAttribute("content", theme.palette.background.default);
+    }
+  }, []);
+
   return (
-    <AuthProvider>
-      <AppContent />
-    </AuthProvider>
+    <ThemeProvider theme={theme}>
+      <CssBaseline />
+      <AuthProvider>
+        <AppContent />
+      </AuthProvider>
+    </ThemeProvider>
   );
 }
 
 // AppContent will have access to AuthContext
 function AppContent() {
   const { isAuthenticated, user, logout, isLoading } = useAuth();
+  const location = useLocation();
+  
+  // Don't show AppBar on the landing page
+  const isLandingPage = location.pathname === '/';
 
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
-      <AppBar position="static" sx={{ mb: 2 }}>
-        <Toolbar>
-          <Typography variant="h6" component="div" sx={{ flexGrow: 1 }}>
-            Rejection Dashboard
-          </Typography>
-          {isAuthenticated && user && (
-            <Box sx={{ display: 'flex', alignItems: 'center' }}>
-              {user.picture && <Avatar src={user.picture} alt={user.name || user.email} sx={{ width: 32, height: 32, mr: 1 }} />} 
-              <Typography sx={{ mr: 2 }}>{user.name || user.email}</Typography>
-              <Button color="inherit" onClick={logout} disabled={isLoading}>Logout</Button>
-            </Box>
-          )}
-        </Toolbar>
-      </AppBar>
-      <Container component="main" sx={{ flexGrow: 1, py: 2 }}>
+      {!isLandingPage && (
+        <AppBar 
+          position="static" 
+          sx={{ 
+            mb: 2, 
+            backgroundColor: 'background.paper', 
+            color: 'text.primary',
+            boxShadow: 'none',
+            borderBottom: '1px solid',
+            borderColor: 'divider'
+          }}
+        >
+          <Toolbar>
+            <Typography 
+              variant="h6" 
+              component="div" 
+              sx={{ 
+                flexGrow: 1,
+                fontWeight: 700,
+                display: 'flex',
+                alignItems: 'center'
+              }}
+            >
+              <Box 
+                component="span" 
+                sx={{ 
+                  color: 'error.main', 
+                  fontWeight: 'bold',
+                  mr: 0.5,
+                }}
+              >
+                Fail
+              </Box>
+              Mail
+            </Typography>
+            {isAuthenticated && user && (
+              <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                {user.picture && <Avatar src={user.picture} alt={user.name || user.email} sx={{ width: 32, height: 32, mr: 1 }} />} 
+                <Typography sx={{ mr: 2 }}>{user.name || user.email}</Typography>
+                <Button 
+                  variant="outlined" 
+                  onClick={logout} 
+                  disabled={isLoading}
+                  sx={{ 
+                    borderRadius: '20px',
+                    px: 3,
+                    fontWeight: 600
+                  }}
+                >
+                  Logout
+                </Button>
+              </Box>
+            )}
+          </Toolbar>
+        </AppBar>
+      )}
+      
+      <Box component="main" sx={{ flexGrow: 1 }}>
         <Routes>
+          <Route path="/" element={<LandingPage />} />
           <Route path="/login" element={<LoginPage />} />
           <Route element={<ProtectedRoute />}>
             <Route path="/dashboard" element={<DashboardPage />} />
           </Route>
-          {/* Redirect to login page by default if not authenticated, or dashboard if authenticated */}
-          <Route 
-            path="*" 
-            element={<Navigate to={isAuthenticated ? "/dashboard" : "/login"} replace />}
-          />
+          {/* Removed the catch-all route to allow landing page access */}
         </Routes>
-      </Container>
-      <Box component="footer" sx={{ textAlign: 'center', py: 2, mt: 'auto', color: 'text.secondary' }}>
-        <Typography variant="caption">
-          &copy; {new Date().getFullYear()} Rejection Dashboard. No data stored, session only analysis.
-        </Typography>
       </Box>
+      
+      {!isLandingPage && (
+        <Box 
+          component="footer" 
+          sx={{ 
+            textAlign: 'center', 
+            py: 2, 
+            mt: 'auto', 
+            color: 'text.secondary',
+            borderTop: '1px solid',
+            borderColor: 'divider'
+          }}
+        >
+          <Typography variant="caption">
+            &copy; {new Date().getFullYear()} FailMail. No data stored, session only analysis.
+          </Typography>
+        </Box>
+      )}
     </Box>
   );
 }
