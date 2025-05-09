@@ -7,6 +7,8 @@ import {
   Typography, 
   Snackbar, 
   Alert,
+  CircularProgress,
+  Modal
 } from '@mui/material';
 import { motion } from 'framer-motion';
 import html2canvas from 'html2canvas';
@@ -98,9 +100,8 @@ const ShareBar: React.FC<ShareBarProps> = ({ targetElementId, userStats }) => {
   // Function to create a custom stats card
   const createStatsCard = async (): Promise<string> => {
     return new Promise(async (resolve, reject) => {
+      setIsGeneratingCard(true);
       try {
-        setIsGeneratingCard(true);
-        
         // Get stats - first from props, fallback to DOM extraction
         const stats = extractUserStats();
         
@@ -109,6 +110,7 @@ const ShareBar: React.FC<ShareBarProps> = ({ targetElementId, userStats }) => {
         const ctx = canvas.getContext('2d');
         
         if (!ctx) {
+          setIsGeneratingCard(false);
           reject("Could not get canvas context");
           return;
         }
@@ -447,6 +449,40 @@ const ShareBar: React.FC<ShareBarProps> = ({ targetElementId, userStats }) => {
           {alertMessage}
         </Alert>
       </Snackbar>
+
+      {/* Loading Overlay Modal */}
+      <Modal
+        open={isGeneratingCard}
+        aria-labelledby="generating-card-title"
+        aria-describedby="generating-card-description"
+        sx={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}
+      >
+        <Box
+          sx={{
+            bgcolor: 'rgba(255, 255, 255, 0.9)',
+            p: 4,
+            borderRadius: 2,
+            textAlign: 'center',
+            boxShadow: 24,
+            outline: 'none',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center'
+          }}
+        >
+          <CircularProgress color="error" sx={{ mb: 2 }} />
+          <Typography id="generating-card-title" variant="h6" component="h2">
+            Generating Your FailMail Card
+          </Typography>
+          <Typography id="generating-card-description" sx={{ mt: 1, color: 'text.secondary' }}>
+            Please wait a moment...
+          </Typography>
+        </Box>
+      </Modal>
     </motion.div>
   );
 };
