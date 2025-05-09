@@ -42,9 +42,7 @@ const StatsCard: React.FC<StatsCardProps> = ({
         border: '1px solid',
         borderColor: 'divider',
         boxShadow: '0 4px 12px rgba(0, 0, 0, 0.05)',
-        background: theme.palette.mode === 'dark' 
-          ? 'linear-gradient(145deg, #1e1e1e 0%, #121212 100%)' 
-          : 'linear-gradient(145deg, #ffffff 0%, #f9fafb 100%)'
+        background: 'linear-gradient(145deg, #ffffff 0%, #f9fafb 100%)'
       }}
     >
       <CardContent sx={{ p: 3 }}>

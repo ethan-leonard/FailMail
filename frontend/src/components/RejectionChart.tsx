@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import { Card, CardContent, Typography, Box, useTheme } from '@mui/material';
 import { motion } from 'framer-motion';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
@@ -9,7 +9,8 @@ interface RejectionChartProps {
 
 const RejectionChart: React.FC<RejectionChartProps> = ({ data }) => {
   const theme = useTheme();
-  const isDarkMode = theme.palette.mode === 'dark';
+  const [animatedData, setAnimatedData] = useState<any[]>([]);
+  const [isAnimating, setIsAnimating] = useState(false);
 
   // Transform data for chart
   const chartData = useMemo(() => {
@@ -42,6 +43,68 @@ const RejectionChart: React.FC<RejectionChartProps> = ({ data }) => {
       .slice(-12);
   }, [data]);
 
+  // Animation for the chart data
+  useEffect(() => {
+    // Cancel any existing animation when data changes
+    setIsAnimating(false);
+    
+    // Only animate if we have data to show
+    if (chartData && chartData.length > 0) {
+      // Reset animation state
+      setIsAnimating(true);
+      
+      // Create data with zeros for all rejections
+      const initialData = chartData.map(item => ({
+        ...item,
+        rejections: 0
+      }));
+      
+      setAnimatedData(initialData);
+
+      // Animate in each bar one by one
+      let currentIndex = 0;
+      
+      const animationInterval = setInterval(() => {
+        if (currentIndex < chartData.length) {
+          setAnimatedData(prev => {
+            // Safely make a copy of previous data
+            const newData = [...prev];
+            
+            // Safety check to ensure the index exists in both arrays
+            if (currentIndex >= 0 && currentIndex < newData.length && 
+                currentIndex < chartData.length && 
+                chartData[currentIndex] && newData[currentIndex]) {
+              
+              // Update the rejection value for this data point
+              newData[currentIndex] = {
+                ...newData[currentIndex],
+                rejections: chartData[currentIndex].rejections
+              };
+            }
+            
+            return newData;
+          });
+          
+          currentIndex++;
+        } else {
+          clearInterval(animationInterval);
+          setIsAnimating(false);
+        }
+      }, 150); // Time between each bar appearing
+      
+      return () => {
+        clearInterval(animationInterval);
+        setIsAnimating(false);
+      };
+    } else {
+      // If no data, just reset
+      setAnimatedData([]);
+    }
+  }, [chartData]);
+
+  // Use animatedData for the chart, but only if we're animating
+  const displayData = isAnimating && animatedData.length > 0 ? animatedData : chartData;
+
   return (
     <Card 
       component={motion.div}
@@ -54,9 +117,7 @@ const RejectionChart: React.FC<RejectionChartProps> = ({ data }) => {
         border: '1px solid',
         borderColor: 'divider',
         boxShadow: '0 4px 12px rgba(0, 0, 0, 0.05)',
-        background: theme.palette.mode === 'dark' 
-          ? 'linear-gradient(145deg, #1e1e1e 0%, #121212 100%)' 
-          : 'linear-gradient(145deg, #ffffff 0%, #f9fafb 100%)'
+        background: 'linear-gradient(145deg, #ffffff 0%, #f9fafb 100%)'
       }}
     >
       <CardContent sx={{ p: 3 }}>
@@ -70,10 +131,10 @@ const RejectionChart: React.FC<RejectionChartProps> = ({ data }) => {
         </Typography>
         
         <Box sx={{ height: 300, mt: 2 }}>
-          {chartData && chartData.length > 0 ? (
+          {displayData && displayData.length > 0 ? (
             <ResponsiveContainer width="100%" height="100%">
               <BarChart
-                data={chartData}
+                data={displayData}
                 margin={{
                   top: 5,
                   right: 10,
@@ -84,37 +145,39 @@ const RejectionChart: React.FC<RejectionChartProps> = ({ data }) => {
                 <CartesianGrid 
                   strokeDasharray="3 3" 
                   vertical={false} 
-                  stroke={isDarkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)'} 
+                  stroke={'rgba(0, 0, 0, 0.1)'} 
                 />
                 <XAxis 
                   dataKey="name" 
                   tick={{ fontSize: 12 }} 
                   tickMargin={10}
-                  stroke={isDarkMode ? 'rgba(255, 255, 255, 0.5)' : 'rgba(0, 0, 0, 0.5)'} 
+                  stroke={'rgba(0, 0, 0, 0.5)'} 
                 />
                 <YAxis 
                   allowDecimals={false} 
                   tick={{ fontSize: 12 }}
-                  stroke={isDarkMode ? 'rgba(255, 255, 255, 0.5)' : 'rgba(0, 0, 0, 0.5)'} 
+                  stroke={'rgba(0, 0, 0, 0.5)'} 
                 />
                 <Tooltip 
                   formatter={(value) => [`${value} rejections`, 'Count']}
                   contentStyle={{ 
-                    backgroundColor: isDarkMode ? '#2d3748' : '#ffffff',
-                    borderColor: isDarkMode ? '#4a5568' : '#e2e8f0',
+                    backgroundColor: '#ffffff',
+                    borderColor: '#e2e8f0',
                     borderRadius: '8px',
                     boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)'
                   }}
                   labelStyle={{ 
                     fontWeight: 600, 
-                    color: isDarkMode ? '#f7fafc' : '#2d3748'
+                    color: '#2d3748'
                   }}
                 />
                 <Bar 
                   dataKey="rejections" 
                   fill={theme.palette.error.main} 
                   radius={[4, 4, 0, 0]}
-                  animationDuration={1500}
+                  animationDuration={500}
+                  animationBegin={0}
+                  animationEasing="ease-out"
                 />
               </BarChart>
             </ResponsiveContainer>
@@ -125,7 +188,7 @@ const RejectionChart: React.FC<RejectionChartProps> = ({ data }) => {
                 display: 'flex', 
                 alignItems: 'center', 
                 justifyContent: 'center',
-                backgroundColor: isDarkMode ? 'rgba(255, 255, 255, 0.02)' : 'rgba(0, 0, 0, 0.02)',
+                backgroundColor: 'rgba(0, 0, 0, 0.02)',
                 borderRadius: 2
               }}
             >

@@ -15,7 +15,7 @@ const CTASection: React.FC<CTASectionProps> = ({ onStartScan }) => {
       component="section"
       sx={{
         py: 10,
-        backgroundColor: theme => theme.palette.mode === 'dark' ? '#0a0a0a' : '#ffffff'
+        backgroundColor: '#ffffff'
       }}
     >
       <Container maxWidth="md">
@@ -31,9 +31,7 @@ const CTASection: React.FC<CTASectionProps> = ({ onStartScan }) => {
               p: { xs: 4, md: 6 },
               borderRadius: 4,
               textAlign: 'center',
-              background: theme.palette.mode === 'dark' 
-                ? 'linear-gradient(145deg, #121212 0%, #1e1e1e 100%)' 
-                : 'linear-gradient(145deg, #f8f9fa 0%, #ffffff 100%)',
+              background: 'linear-gradient(145deg, #f8f9fa 0%, #ffffff 100%)',
               border: '1px solid',
               borderColor: 'divider',
               position: 'relative',

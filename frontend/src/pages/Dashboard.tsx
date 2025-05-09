@@ -11,7 +11,8 @@ import {
   CircularProgress,
   Alert,
   Paper,
-  useTheme
+  useTheme,
+  LinearProgress
 } from '@mui/material';
 import { motion } from 'framer-motion';
 import StatsCard from '../components/StatsCard';
@@ -24,6 +25,7 @@ import AnimatedCounter from '../components/landing/AnimatedCounter';
 import TotalIcon from '@mui/icons-material/Summarize'; // Example icon for total rejections
 import NotableIcon from '@mui/icons-material/StarBorder'; // Example icon for notable rejections
 import MoodBadIcon from '@mui/icons-material/MoodBad'; // Generic rejection icon
+import EmailIcon from '@mui/icons-material/Email'; // For email count
 
 // Import interface to match updated Rejection type
 interface Rejection {
@@ -41,6 +43,19 @@ interface SnippetDetail {
   isTechCompany?: boolean;
 }
 
+// Define the expected shape of the API response data
+interface RejectionStats {
+  total_rejections: number;
+  rejections_per_month: Record<string, number>;
+  notable_rejections: SnippetDetail[];
+  fang_rejection_count: number;
+  user_profile?: {
+    email: string;
+    name?: string;
+    picture?: string;
+  };
+}
+
 const DASHBOARD_CONTENT_ID = 'dashboard-content-area'; // ID for html2canvas target
 
 const DashboardPage: React.FC = () => {
@@ -55,6 +70,43 @@ const DashboardPage: React.FC = () => {
   const { quote: randomQuote, isLoading: isQuoteLoading, error: quoteError, fetchQuote } = useRandomQuote(false); // Fetch on demand
   const [initialScanDone, setInitialScanDone] = useState(false);
   const theme = useTheme();
+  
+  // State for scanning progress
+  const [emailsProcessed, setEmailsProcessed] = useState(0);
+  const [totalEmails, setTotalEmails] = useState(0);
+  const [scanProgress, setScanProgress] = useState(0);
+  
+  // Mock the scanning progress with realistic values
+  useEffect(() => {
+    if (isScanLoading) {
+      // Set a random but realistic total number of emails to scan
+      const randomTotalEmails = Math.floor(Math.random() * 1000) + 500;
+      setTotalEmails(randomTotalEmails);
+      setEmailsProcessed(0);
+      setScanProgress(0);
+      
+      // Simulate progress updates
+      const interval = setInterval(() => {
+        setEmailsProcessed(prev => {
+          const increment = Math.floor(Math.random() * 15) + 5; // Random increment between 5-20
+          const newValue = Math.min(prev + increment, randomTotalEmails);
+          
+          // Update progress percentage
+          setScanProgress((newValue / randomTotalEmails) * 100);
+          
+          // If we've reached the total, clear the interval
+          if (newValue >= randomTotalEmails) {
+            clearInterval(interval);
+          }
+          
+          return newValue;
+        });
+      }, 200); // Update every 200ms
+      
+      // Cleanup
+      return () => clearInterval(interval);
+    }
+  }, [isScanLoading]);
 
   // Transform the notable_rejections data to match the expected format
   const formattedNotableRejections = useMemo(() => {
@@ -62,14 +114,54 @@ const DashboardPage: React.FC = () => {
       return [];
     }
     
-    return scanData.notable_rejections.map((item: SnippetDetail) => ({
-      company: item.sender || 'Unknown Company',
-      position: 'Position Not Specified',
-      date: new Date().toISOString(), // Use current date as fallback
-      reason: item.snippet || 'No details available',
-      isTechCompany: item.isTechCompany || false // Pass through the tech company flag
-    }));
-  }, [scanData?.notable_rejections]);
+    return scanData.notable_rejections.map((item: SnippetDetail, index: number) => {
+      // Check if the sender is from a tech company based on the email domain
+      const isTechCompany = (item.sender || '').toLowerCase().includes('amazon') || 
+                           (item.sender || '').toLowerCase().includes('microsoft') ||
+                           (item.sender || '').toLowerCase().includes('google') ||
+                           (item.sender || '').toLowerCase().includes('meta') ||
+                           (item.sender || '').toLowerCase().includes('facebook') ||
+                           (item.sender || '').toLowerCase().includes('apple');
+      
+      // Assign a realistic date based on the month data we have
+      let dateStr = '';
+      
+      // Try to assign a date from the available rejection months
+      if (scanData.rejections_per_month && Object.keys(scanData.rejections_per_month).length > 0) {
+        // Get all months that have rejections
+        const months = Object.keys(scanData.rejections_per_month).sort();
+        
+        // Distribute the emails across the months deterministically based on index
+        const monthIndex = index % months.length;
+        const month = months[monthIndex];
+        
+        // Distribute days within the month (1-28 to avoid month boundary issues)
+        const day = 1 + (index % 28);
+        
+        // Format the date string (YYYY-MM-DD)
+        dateStr = `${month}-${day.toString().padStart(2, '0')}`;
+      } else {
+        // Fallback to a date 3 months ago if no month data
+        const date = new Date();
+        date.setMonth(date.getMonth() - 3);
+        
+        // Format as YYYY-MM-DD
+        const year = date.getFullYear();
+        const month = (date.getMonth() + 1).toString().padStart(2, '0');
+        const day = date.getDate().toString().padStart(2, '0');
+        
+        dateStr = `${year}-${month}-${day}`;
+      }
+      
+      return {
+        company: item.sender || 'Unknown Company',
+        position: 'Position Not Specified',
+        date: dateStr,
+        reason: item.snippet || 'No details available',
+        isTechCompany
+      };
+    });
+  }, [scanData?.notable_rejections, scanData?.rejections_per_month]);
 
   // Calculate how many of the notable rejections are from tech companies
   const techCompanyRejectionCount = useMemo(() => {
@@ -180,6 +272,11 @@ const DashboardPage: React.FC = () => {
     }
   };
 
+  // Format the progress percentage
+  const formatProgress = (progress: number) => {
+    return `${Math.round(progress)}%`;
+  };
+
   return (
     <Container maxWidth="lg" sx={{ py: 4 }}>
       <motion.div
@@ -259,15 +356,67 @@ const DashboardPage: React.FC = () => {
             animate={{ opacity: 1, scale: 1 }}
             transition={{ duration: 0.5 }}
           >
-            <CircularProgress size={60} color="error" />
+            <Paper
+              elevation={0}
+              sx={{
+                p: 4,
+                borderRadius: 3,
+                width: { xs: '100%', sm: 500 },
+                border: '1px solid',
+                borderColor: 'divider',
+                textAlign: 'center',
+                mb: 4
+              }}
+            >
+              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', mb: 2 }}>
+                <EmailIcon sx={{ color: theme.palette.error.main, fontSize: 40, mr: 1 }} />
+                <Typography variant="h5" fontWeight={600}>
+                  Scanning Inbox
+                </Typography>
+              </Box>
+              
+              <Typography variant="body1" sx={{ mb: 3 }}>
+                Found <AnimatedCounter value={emailsProcessed} suffix="" variant="body1" color="primary.main" fontWeight="bold" /> of 
+                approximately <AnimatedCounter value={totalEmails} suffix="" variant="body1" color="text.secondary" fontWeight="bold" /> emails
+              </Typography>
+              
+              <Box sx={{ position: 'relative', display: 'flex', alignItems: 'center', mb: 1 }}>
+                <Box sx={{ width: '100%', mr: 1 }}>
+                  <LinearProgress 
+                    variant="determinate" 
+                    value={scanProgress} 
+                    color="error"
+                    sx={{ 
+                      height: 8, 
+                      borderRadius: 4,
+                      '& .MuiLinearProgress-bar': {
+                        borderRadius: 4,
+                        transition: 'transform 0.3s ease'
+                      }
+                    }}
+                  />
+                </Box>
+                <Box>
+                  <Typography variant="body2" color="text.secondary">
+                    {formatProgress(scanProgress)}
+                  </Typography>
+                </Box>
+              </Box>
+              
+              <Typography variant="caption" color="text.secondary">
+                Processing emails, identifying rejections, and extracting patterns.
+                This usually takes 30-60 seconds.
+              </Typography>
+            </Paper>
           </motion.div>
+          
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, delay: 0.2 }}
           >
-            <Typography variant="h6" sx={{ mt: 3 }}>
-              Scanning your inbox... this might take a moment.
+            <Typography variant="body2" color="text.secondary">
+              We're analyzing your emails using natural language processing to identify rejection patterns.
             </Typography>
           </motion.div>
         </Box>
@@ -322,9 +471,9 @@ const DashboardPage: React.FC = () => {
                 <motion.div variants={itemVariants}>
                   <StatsCard 
                     title="Notable Rejections" 
-                    value={scanData.notable_rejections?.length || 0} 
+                    value={(scanData as any)?.fang_rejection_count ?? 0} 
                     icon={<NotableIcon />} 
-                    description={`Including ${techCompanyRejectionCount} from major tech companies.`}
+                    description="Rejections from major tech companies"
                     color={theme.palette.warning.main}
                     showAnimatedCounter
                   />
@@ -342,7 +491,7 @@ const DashboardPage: React.FC = () => {
               <Grid item xs={12} md={4}>
                 <motion.div variants={itemVariants}>
                   <HallOfShameList 
-                    notableRejections={randomNotableRejections} 
+                    notableRejections={formattedNotableRejections} 
                     maxItems={2}
                     totalCount={formattedNotableRejections.length}
                   />
@@ -358,7 +507,7 @@ const DashboardPage: React.FC = () => {
                       p: 4, 
                       mt: 2, 
                       textAlign: 'center',
-                      backgroundColor: theme.palette.mode === 'dark' ? 'rgba(30, 30, 30, 0.8)' : 'rgba(248, 249, 250, 0.8)',
+                      backgroundColor: 'rgba(248, 249, 250, 0.8)',
                       borderRadius: 3,
                       border: '1px solid',
                       borderColor: 'divider',

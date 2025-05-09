@@ -42,7 +42,7 @@ const Feature: React.FC<FeatureProps> = ({ title, description, icon, delay = 0 }
           borderRadius: 4,
           border: '1px solid',
           borderColor: 'divider',
-          backgroundColor: theme.palette.mode === 'dark' ? 'rgba(18, 18, 18, 0.6)' : 'rgba(255, 255, 255, 0.8)',
+          backgroundColor: 'rgba(255, 255, 255, 0.8)',
           backdropFilter: 'blur(10px)',
           transition: 'transform 0.3s ease-in-out, box-shadow 0.3s ease-in-out',
           '&:hover': {
@@ -77,7 +77,7 @@ const FeatureSection: React.FC = () => {
       component="section" 
       sx={{ 
         py: 10,
-        backgroundColor: theme => theme.palette.mode === 'dark' ? '#0a0a0a' : '#f8f9fa',
+        backgroundColor: '#f8f9fa',
       }}
     >
       <Container maxWidth="lg">

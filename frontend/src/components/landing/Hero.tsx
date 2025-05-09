@@ -50,9 +50,7 @@ const Hero: React.FC<HeroProps> = ({ onStartScan }) => {
         alignItems: 'center',
         pt: { xs: 12, md: 6 },
         pb: 6,
-        background: theme.palette.mode === 'dark' 
-          ? 'linear-gradient(180deg, #0a0a0a 0%, #121212 100%)' 
-          : 'linear-gradient(180deg, #f8f9fa 0%, #ffffff 100%)',
+        background: 'linear-gradient(180deg, #f8f9fa 0%, #ffffff 100%)',
       }}
     >
       <Container maxWidth="lg">
@@ -83,9 +81,7 @@ const Hero: React.FC<HeroProps> = ({ onStartScan }) => {
                   color="text.secondary" 
                   sx={{ mb: 4, fontWeight: 400 }}
                 >
-                  Count &amp; visualize your job rejections with a touch of humor.
-                  Over <AnimatedCounter value={23000} suffix="+" variant="h5" color="error.main" fontWeight="bold" /> 
-                  users tracking their failures.
+                  The average job seeker faces <AnimatedCounter value={100} suffix="+" variant="h5" color="error.main" fontWeight="bold" /> rejections before landing one offer. How many have you racked up?
                 </Typography>
               </motion.div>
 

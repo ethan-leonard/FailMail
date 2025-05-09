@@ -48,9 +48,9 @@ const ShareBar: React.FC<ShareBarProps> = ({ targetElementId }) => {
       
       html2canvas(targetElement, {
         allowTaint: true,
-        useCORS: true,
+        useCORS: true, 
         scale: 2, // Higher resolution
-        backgroundColor: theme.palette.mode === 'dark' ? '#121212' : '#ffffff',
+        backgroundColor: '#ffffff',
       }).then(canvas => {
         resolve(canvas.toDataURL('image/png'));
       }).catch(err => {
@@ -79,7 +79,7 @@ const ShareBar: React.FC<ShareBarProps> = ({ targetElementId }) => {
       
       // Convert data URL to blob
       const response = await fetch(dataUrl);
-      const blob = await response.blob();
+        const blob = await response.blob();
       
       // Copy to clipboard using Clipboard API if available
       if (navigator.clipboard && navigator.clipboard.write) {
@@ -146,7 +146,7 @@ const ShareBar: React.FC<ShareBarProps> = ({ targetElementId }) => {
           mb: 2,
           p: 2,
           borderRadius: 3,
-          backgroundColor: theme.palette.mode === 'dark' ? 'rgba(30, 30, 30, 0.5)' : 'rgba(248, 249, 250, 0.7)',
+          backgroundColor: 'rgba(248, 249, 250, 0.7)',
           border: '1px solid',
           borderColor: 'divider',
         }}
@@ -200,11 +200,11 @@ const ShareBar: React.FC<ShareBarProps> = ({ targetElementId }) => {
               startIcon={<TwitterIcon />}
             >
               Twitter
-            </Button>
+      </Button>
           </Tooltip>
           
           <Tooltip title="Share to LinkedIn">
-            <Button 
+        <Button
               onClick={shareToLinkedIn} 
               component={motion.button}
               whileHover={{ scale: 1.05 }}

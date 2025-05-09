@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Card, 
   CardContent, 
@@ -17,6 +17,7 @@ import { motion } from 'framer-motion';
 import WorkOffIcon from '@mui/icons-material/WorkOff';
 import ShuffleIcon from '@mui/icons-material/Shuffle';
 import StarIcon from '@mui/icons-material/Star';
+import LoopIcon from '@mui/icons-material/Loop';
 
 interface Rejection {
   company: string;
@@ -38,15 +39,51 @@ const HallOfShameList: React.FC<HallOfShameListProps> = ({
   totalCount
 }) => {
   const theme = useTheme();
-  const isDarkMode = theme.palette.mode === 'dark';
+  const [currentRejections, setCurrentRejections] = useState<Rejection[]>([]);
+  const [rotationCounter, setRotationCounter] = useState(0);
+
+  // UseEffect for email rotation every 8 seconds
+  useEffect(() => {
+    // Initialize with default rejections
+    setCurrentRejections(notableRejections.slice(0, maxItems));
+    
+    // Only setup rotation if we have more than maxItems rejections
+    if (notableRejections.length > maxItems) {
+      const rotationInterval = setInterval(() => {
+        setRotationCounter(prev => prev + 1);
+      }, 8000);
+      
+      // Cleanup on unmount
+      return () => clearInterval(rotationInterval);
+    }
+  }, [notableRejections, maxItems]);
+  
+  // Update displayed rejections when rotation counter changes
+  useEffect(() => {
+    if (notableRejections.length > maxItems) {
+      // Create a new set of rejections to display
+      const startIndex = (rotationCounter * maxItems) % notableRejections.length;
+      const endIndex = Math.min(startIndex + maxItems, notableRejections.length);
+      
+      // If we need to wrap around to the beginning of the array
+      if (endIndex - startIndex < maxItems) {
+        const firstPart = notableRejections.slice(startIndex);
+        const secondPart = notableRejections.slice(0, maxItems - (endIndex - startIndex));
+        setCurrentRejections([...firstPart, ...secondPart]);
+      } else {
+        setCurrentRejections(notableRejections.slice(startIndex, endIndex));
+      }
+    }
+  }, [rotationCounter, notableRejections, maxItems]);
 
   // Ensure we have valid data and limit to maxItems
-  const rejections = notableRejections && Array.isArray(notableRejections) 
-    ? notableRejections.slice(0, maxItems) 
+  const rejections = currentRejections && Array.isArray(currentRejections) 
+    ? currentRejections 
     : [];
 
   // Determine if we're showing a random sample
   const isShowingSample = totalCount !== undefined && totalCount > rejections.length;
+  const isRotating = notableRejections.length > maxItems;
 
   // Animation variants
   const listVariants = {
@@ -66,6 +103,90 @@ const HallOfShameList: React.FC<HallOfShameListProps> = ({
       x: 0,
       transition: { duration: 0.3 }
     }
+  };
+
+  // Function to extract real position from rejection reason/snippet
+  const extractPosition = (rejection: Rejection): string => {
+    if (rejection.position && rejection.position !== 'Position Not Specified') {
+      return rejection.position;
+    }
+    
+    // Try to extract position from the reason text
+    if (rejection.reason) {
+      // Common patterns in rejection emails
+      const positionPatterns = [
+        /application for the (.*?) role/i,
+        /application for the (.*?) position/i,
+        /application for our (.*?) role/i,
+        /application for our (.*?) position/i,
+        /regarding the (.*?) role/i,
+        /regarding the (.*?) position/i,
+        /interest in the (.*?) role/i,
+        /interest in the (.*?) position/i,
+        /the (.*?) opportunity/i,
+        /applied for the (.*?) position/i
+      ];
+      
+      for (const pattern of positionPatterns) {
+        const match = rejection.reason.match(pattern);
+        if (match && match[1]) {
+          // Clean up the extracted position
+          let position = match[1].trim();
+          // Remove any trailing punctuation
+          position = position.replace(/[,.;:]$/, '');
+          // Return if not too long
+          if (position.length < 40) {
+            return position;
+          }
+        }
+      }
+      
+      // If company name is known, try to extract a general role
+      if (rejection.company && rejection.company !== 'Unknown Company') {
+        const rolePatterns = [
+          /software engineer/i,
+          /developer/i,
+          /programmer/i,
+          /data scientist/i,
+          /product manager/i,
+          /designer/i,
+          /ux researcher/i,
+          /analyst/i,
+          /engineer/i,
+          /marketing/i
+        ];
+        
+        for (const pattern of rolePatterns) {
+          const match = rejection.reason.match(pattern);
+          if (match) {
+            return match[0];
+          }
+        }
+      }
+    }
+    
+    // Fallbacks based on company domain
+    if (rejection.company) {
+      const companyLower = rejection.company.toLowerCase();
+      if (companyLower.includes('google') || 
+          companyLower.includes('facebook') || 
+          companyLower.includes('meta') || 
+          companyLower.includes('microsoft') || 
+          companyLower.includes('amazon') || 
+          companyLower.includes('apple')) {
+        return 'Software Engineer';
+      }
+      
+      if (companyLower.includes('data') || companyLower.includes('analytics')) {
+        return 'Data Scientist';
+      }
+      
+      if (companyLower.includes('design') || companyLower.includes('ux')) {
+        return 'UX Designer';
+      }
+    }
+    
+    return 'Software Developer'; // Default fallback
   };
 
   // Function to generate initials for the avatar
@@ -130,47 +251,51 @@ const HallOfShameList: React.FC<HallOfShameListProps> = ({
         border: '1px solid',
         borderColor: 'divider',
         boxShadow: '0 4px 12px rgba(0, 0, 0, 0.05)',
-        background: theme.palette.mode === 'dark' 
-          ? 'linear-gradient(145deg, #1e1e1e 0%, #121212 100%)' 
-          : 'linear-gradient(145deg, #ffffff 0%, #f9fafb 100%)'
+        background: 'linear-gradient(145deg, #ffffff 0%, #f9fafb 100%)'
       }}
     >
       <CardContent sx={{ p: 3 }}>
         <Box display="flex" alignItems="center" sx={{ mb: 1 }}>
           <WorkOffIcon sx={{ mr: 1, color: theme.palette.error.main }} />
           <Typography variant="h6" fontWeight={600}>
-            Notable Rejections
+            Rejection Collection
           </Typography>
         </Box>
 
-        {isShowingSample && (
-          <Box mb={2} display="flex" alignItems="center">
+        <Box mb={2} pt={2} display="flex" alignItems="center" gap={1}>
+          {isShowingSample && (
             <Chip
               icon={<ShuffleIcon />}
-              label={`Showing ${rejections.length} random of ${totalCount} total`}
+              label={`Showing ${rejections.length} of ${totalCount} total`}
               size="small"
               variant="outlined"
               color="warning"
               sx={{ borderRadius: '12px' }}
             />
-          </Box>
-        )}
-
-        <Typography variant="body2" color="text.secondary" paragraph>
-          {rejections.length > 0 
-            ? "The hall of fame of rejections." 
-            : "No notable rejections found yet. Keep applying!"}
-        </Typography>
+          )}
+          
+          {isRotating && (
+            <Chip
+              icon={<LoopIcon />}
+              label="Auto-rotating"
+              size="small"
+              variant="outlined"
+              color="info"
+              sx={{ borderRadius: '12px' }}
+            />
+          )}
+        </Box>
 
         {rejections.length > 0 ? (
           <motion.div
+            key={`rejections-${rotationCounter}`}
             variants={listVariants}
             initial="hidden"
             animate="visible"
           >
             <List disablePadding>
               {rejections.map((rejection, index) => (
-                <React.Fragment key={`${rejection.company || 'unknown'}-${index}`}>
+                <React.Fragment key={`${rejection.company || 'unknown'}-${index}-${rotationCounter}`}>
                   {index > 0 && <Divider component="li" variant="inset" sx={{ ml: 0 }} />}
                   <motion.div variants={itemVariants}>
                     <ListItem 
@@ -180,7 +305,7 @@ const HallOfShameList: React.FC<HallOfShameListProps> = ({
                         px: 0,
                         transition: 'background-color 0.2s',
                         '&:hover': {
-                          backgroundColor: isDarkMode ? 'rgba(255, 255, 255, 0.03)' : 'rgba(0, 0, 0, 0.02)',
+                          backgroundColor: 'rgba(0, 0, 0, 0.02)',
                         }
                       }}
                     >
@@ -218,11 +343,11 @@ const HallOfShameList: React.FC<HallOfShameListProps> = ({
                         secondary={
                           <React.Fragment>
                             <Typography component="span" variant="body2" color="text.secondary" display="block">
-                              {rejection.position || 'Unknown Position'}
+                              {extractPosition(rejection)}
                             </Typography>
                             <Typography component="span" variant="caption" color="text.secondary">
                               {formatDate(rejection.date)}
-                              {rejection.reason && ` • ${rejection.reason}`}
+                              {rejection.reason && ` • ${rejection.reason.substring(0, 80)}${rejection.reason.length > 80 ? '...' : ''}`}
                             </Typography>
                           </React.Fragment>
                         }
@@ -240,7 +365,7 @@ const HallOfShameList: React.FC<HallOfShameListProps> = ({
               display: 'flex', 
               alignItems: 'center', 
               justifyContent: 'center',
-              backgroundColor: isDarkMode ? 'rgba(255, 255, 255, 0.02)' : 'rgba(0, 0, 0, 0.02)',
+              backgroundColor: 'rgba(0, 0, 0, 0.02)',
               borderRadius: 2
             }}
           >

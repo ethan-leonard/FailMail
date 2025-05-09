@@ -81,7 +81,7 @@ const MemeSection: React.FC = () => {
       component="section"
       sx={{
         py: 8,
-        backgroundColor: theme => theme.palette.mode === 'dark' ? '#121212' : '#F5F5F7',
+        backgroundColor: '#F5F5F7',
         overflow: 'hidden'
       }}
     >

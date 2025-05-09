@@ -4,7 +4,7 @@ import App from './App.tsx';
 import './index.css';
 import { BrowserRouter } from 'react-router-dom';
 import { GoogleOAuthProvider } from '@react-oauth/google';
-import { ThemeProvider, createTheme, CssBaseline, useMediaQuery } from '@mui/material';
+import { ThemeProvider, createTheme, CssBaseline } from '@mui/material';
 
 const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID;
 
@@ -14,18 +14,16 @@ if (!GOOGLE_CLIENT_ID) {
 }
 
 const Main = () => {
-  const prefersDarkMode = useMediaQuery('(prefers-color-scheme: dark)');
-
+  // Always use light mode regardless of system preferences
   const theme = React.useMemo(
     () =>
       createTheme({
         palette: {
-          mode: prefersDarkMode ? 'dark' : 'light',
-          // TODO: Customize theme further if needed (e.g., primary/secondary colors)
-          // Example for Apple-style cards:
-          // background: {
-          //   paper: prefersDarkMode ? '#1e1e1e' : '#f9f9f9',
-          // },
+          mode: 'light',
+          // Customize theme for light mode
+          background: {
+            paper: '#f9f9f9',
+          },
         },
         typography: {
           fontFamily: 'Roboto, Arial, sans-serif',
@@ -35,13 +33,12 @@ const Main = () => {
                 styleOverrides: {
                     root: {
                         borderRadius: '12px',
-                        // boxShadow: '0 4px 12px rgba(0,0,0,0.05)', // Handled by global css or theme
                     }
                 }
             }
         }
       }),
-    [prefersDarkMode],
+    [],
   );
 
   return (
@@ -49,7 +46,7 @@ const Main = () => {
       {GOOGLE_CLIENT_ID ? (
         <GoogleOAuthProvider clientId={GOOGLE_CLIENT_ID}>
           <ThemeProvider theme={theme}>
-            <CssBaseline /> {/* MUI's normalization and dark mode baseline */} 
+            <CssBaseline />
             <BrowserRouter>
               <App />
             </BrowserRouter>

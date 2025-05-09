@@ -263,7 +263,7 @@ async def scan_gmail_for_rejections(access_token: str, user_profile: UserProfile
         
         all_messages = []
         page_token = None
-        max_pages = 10 # Limit pagination to avoid excessive API calls (adjust as needed)
+        max_pages = 10 # Limit pagination to avoid excessive API calls
         pages_fetched = 0
 
         print("Starting Gmail message list fetch with pagination...")
@@ -271,13 +271,12 @@ async def scan_gmail_for_rejections(access_token: str, user_profile: UserProfile
             pages_fetched += 1
             print(f"Fetching page {pages_fetched}...")
             try:
-                # Run blocking list call in executor
                 response = await loop.run_in_executor(
                     None, 
                     lambda: service.users().messages().list(
                         userId='me', 
                         q=BASE_GMAIL_QUERY, 
-                        maxResults=500, # Fetch max allowed per page
+                        maxResults=500,
                         pageToken=page_token
                     ).execute()
                 )
@@ -288,111 +287,124 @@ async def scan_gmail_for_rejections(access_token: str, user_profile: UserProfile
                 page_token = response.get('nextPageToken')
                 if not page_token:
                     print("  No more pages found.")
-                    break # Exit loop if no more pages
+                    break
                 else:
                      print(f"  Found nextPageToken, continuing...")
-                     # Optional: add a small delay between page requests
-                     # await asyncio.sleep(0.1) 
-
             except Exception as list_exc:
                  print(f"Error during messages.list API call on page {pages_fetched}: {list_exc}")
-                 # Decide whether to break or continue? For now, break.
                  raise HTTPException(status_code=500, detail=f"Failed during Gmail search pagination: {str(list_exc)}") from list_exc
         
         print(f"Finished fetching message list. Total messages to process: {len(all_messages)}")
         
-        # --- Process Messages (keep concurrency low for now) ---
-        total_rejections = 0
-        rejections_per_month: Dict[str, int] = {}
-        notable_rejections: List[SnippetDetail] = []
+        # --- Process Messages ---
+        semaphore = asyncio.Semaphore(1)
         processed_count = 0
         
-        # Semaphore to control concurrency
-        semaphore = asyncio.Semaphore(1) 
-        tasks = []
-
-        async def process_message_wrapper(msg_summary):
+        # Collection of ALL rejection emails with their details
+        all_rejection_emails = []
+        
+        async def process_message(msg_summary):
             nonlocal processed_count
             async with semaphore:
                 msg_id = msg_summary['id']
-                # print(f"Processing message ID: {msg_id}") # Verbose logging if needed
                 sender_email, body, email_date = await get_email_details(service, msg_id)
                 processed_count += 1
-                if processed_count % 50 == 0: # Log progress every 50 emails
+                
+                if processed_count % 50 == 0:
                     print(f"  Processed {processed_count}/{len(all_messages)} emails...")
 
-                if not body or not email_date: # Allow missing sender for now, filter later
-                    return None 
+                # Skip if missing critical data
+                if not body or not email_date:
+                    return None
                 
-                is_reject, tags = is_rejection(body, sender_email) # Pass sender_email
+                # Check if this is a rejection email
+                is_reject, tags = is_rejection(body, sender_email)
                 if is_reject:
+                    # Extract the month-year for aggregation
                     month_year_key = email_date.strftime("%Y-%m")
-                    # Only take the first 100 characters of plain text for snippet
+                    
+                    # Create a snippet for display purposes
                     snippet_text = (body[:97].strip() + '...') if len(body) > 100 else body.strip()
                     
-                    # Use a placeholder if sender email couldn't be extracted
+                    # Use a placeholder if sender couldn't be extracted
                     display_sender = sender_email if sender_email else "Unknown Sender"
                     
+                    # Return the full data about this rejection email
                     return {
                         "month_year": month_year_key,
                         "sender": display_sender,
                         "snippet": snippet_text,
-                        "tags": tags
+                        "tags": tags,
+                        "date": email_date
                     }
-            return None
+            return None  # Not a rejection email or missing data
 
         print(f"Starting processing of {len(all_messages)} messages...")
         start_time = time.time()
-        for msg_summary in all_messages:
-            tasks.append(process_message_wrapper(msg_summary))
         
-        processed_results = await asyncio.gather(*tasks)
+        # Create tasks for all messages
+        tasks = [process_message(msg) for msg in all_messages]
+        results = await asyncio.gather(*tasks)
+        
+        # Filter out None results (non-rejections or errors)
+        all_rejection_emails = [result for result in results if result]
+        
         end_time = time.time()
         print(f"Finished processing messages in {end_time - start_time:.2f} seconds.")
 
-        # --- Aggregate Results ---
-        all_rejections = []
-        for result in processed_results:
-            if result:
-                total_rejections += 1
-                rejections_per_month[result["month_year"]] = rejections_per_month.get(result["month_year"], 0) + 1
-                all_rejections.append(result)
-                
-        # Sort all rejections by priority: FANG first, then InterviewStage, then others
-        def rejection_priority(rejection):
-            if "FANG" in rejection["tags"]:
-                return 0  # Highest priority
-            elif "InterviewStage" in rejection["tags"]:
-                return 1  # Second priority
-            elif "TemplateFail" in rejection["tags"]:
-                return 2  # Third priority
-            return 3  # Lowest priority
-            
-        # Sort and take only top 3 for notable rejections
-        sorted_rejections = sorted(all_rejections, key=rejection_priority)
-        top_rejections = sorted_rejections[:3]  # Limit to top 3
+        # --- Simple Aggregation of Results ---
+        # 1. Total count of rejections
+        total_rejections = len(all_rejection_emails)
         
-        # Convert to SnippetDetail objects
-        notable_rejections = [
+        # 2. Count by month - initialize with 0 for all keys to ensure all months are represented
+        rejections_per_month = {}
+        for rejection in all_rejection_emails:
+            month_key = rejection["month_year"]
+            rejections_per_month[month_key] = rejections_per_month.get(month_key, 0) + 1
+        
+        # 3. Count FANG rejections
+        fang_rejection_count = sum(1 for r in all_rejection_emails if "FANG" in r["tags"])
+        
+        # 4. Get examples for display (up to 5, prioritizing FANG, then Interview rejections)
+        # Sort by FANG > InterviewStage > TemplateFail > Others
+        def get_display_priority(rejection):
+            if "FANG" in rejection["tags"]:
+                return 0
+            elif "InterviewStage" in rejection["tags"]:
+                return 1  
+            elif "TemplateFail" in rejection["tags"]:
+                return 2
+            return 3
+        
+        # Sort and take top 5 for display
+        sorted_for_display = sorted(all_rejection_emails, key=get_display_priority)
+        display_rejections = [
             SnippetDetail(sender=r["sender"], snippet=r["snippet"]) 
-            for r in top_rejections
+            for r in sorted_for_display[:5]  # Take top 5 for display snippets
         ]
-
-        print(f"Scan complete. Total rejections found: {total_rejections}")
+        
+        # Log the counts for verification
+        print(f"Scan complete.")
+        print(f"Total rejections found: {total_rejections}")
+        print(f"Rejections by month: {rejections_per_month}")
+        print(f"FANG company rejections: {fang_rejection_count}")
+        print(f"Sum of monthly totals: {sum(rejections_per_month.values())} (should equal {total_rejections})")
+        
+        # Return the stats
         return RejectionStats(
             total_rejections=total_rejections,
-            rejections_per_month=dict(sorted(rejections_per_month.items())), # Sort months
-            notable_rejections=notable_rejections,
+            rejections_per_month=dict(sorted(rejections_per_month.items())),  # Sort by month
+            fang_rejection_count=fang_rejection_count,
+            notable_rejections=display_rejections,
             user_profile=user_profile
         )
 
-    except HTTPException as http_exc: # Re-raise HTTPExceptions
+    except HTTPException as http_exc:
         raise http_exc
     except Exception as e:
-        # Log the error properly in a real app
         import traceback
         print(f"An unexpected error occurred during Gmail scan: {type(e).__name__} - {e}")
-        traceback.print_exc() # Print full traceback for unexpected errors
+        traceback.print_exc()
         raise HTTPException(status_code=500, detail=f"Unexpected error during Gmail scan: {str(e)}")
 
 # TODO: Utility functions for keyword list, FANG domain list, template-fail regex are defined as constants above.

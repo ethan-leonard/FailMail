@@ -7,16 +7,13 @@
   --error-color: #FF4D4D;
   --warning-color: #F9CB28;
   --background-light: #ffffff;
-  --background-dark: #0a0a0a;
   --text-light: #333333;
-  --text-dark: #f8f9fa;
 
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
   line-height: 1.5;
   font-weight: 400;
 
-  color-scheme: light dark;
-  /* Light mode defaults */
+  /* Light mode only */
   --background-default: #ffffff;
   --text-primary: #213547;
   --card-background: #f9f9f9;
@@ -41,29 +38,6 @@ body {
   color: var(--text-primary);
 }
 
-/* Dark mode overrides */
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background-default: #242424;
-    --text-primary: rgba(255, 255, 255, 0.87);
-    --card-background: #1e1e1e; /* Darker card */
-    --border-color: #424242;
-  }
-
-  body {
-    background-color: var(--background-default);
-    color: var(--text-primary);
-  }
-
-  /* Example: Style MUI components for dark mode if needed, though MUI has its own theme provider */
-  .MuiAppBar-root {
-     background-color: #1e1e1e !important; /* Example */
-  }
-  .MuiPaper-root {
-    background-color: var(--card-background) !important;
-  }
-}
-
 #root {
   width: 100%;
   max-width: 1280px;
@@ -72,7 +46,7 @@ body {
   text-align: center;
 }
 
-/* Basic Apple-style card resemblance - customize further in components */
+/* Basic Apple-style card resemblance */
 .apple-style-card {
   background-color: var(--card-background);
   border-radius: 12px;
@@ -80,12 +54,6 @@ body {
   box-shadow: 0 4px 12px rgba(0,0,0,0.05);
   border: 1px solid var(--border-color);
   text-align: left;
-}
-
-@media (prefers-color-scheme: dark) {
-  .apple-style-card {
-    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-  }
 }
 
 /* Base styles */
@@ -127,21 +95,6 @@ a, button, input, select, textarea {
 
 ::-webkit-scrollbar-thumb:hover {
   background: rgba(0, 0, 0, 0.25);
-}
-
-/* Dark mode scrollbar */
-@media (prefers-color-scheme: dark) {
-  ::-webkit-scrollbar-track {
-    background: rgba(255, 255, 255, 0.05);
-  }
-
-  ::-webkit-scrollbar-thumb {
-    background: rgba(255, 255, 255, 0.15);
-  }
-
-  ::-webkit-scrollbar-thumb:hover {
-    background: rgba(255, 255, 255, 0.25);
-  }
 }
 
 /* Selection styling */
@@ -191,12 +144,4 @@ img {
   max-width: 100%;
   height: auto;
   display: block;
-}
-
-/* Contrast improvements for dark mode */
-@media (prefers-color-scheme: dark) {
-  body {
-    color: var(--text-dark);
-    background-color: var(--background-dark);
-  }
 } 

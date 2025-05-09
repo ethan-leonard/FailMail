@@ -13,6 +13,7 @@ import {
 } from '@mui/material';
 import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
+import TwitterIcon from '@mui/icons-material/Twitter';
 
 interface NavbarProps {
   onStartScan?: () => void;
@@ -78,20 +79,27 @@ const Navbar: React.FC<NavbarProps> = ({ onStartScan }) => {
 
             <Box>
               <Button
-                component={motion.button}
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
+                component="a"
+                href="https://x.com/EthanLeonard821"
+                target="_blank"
+                rel="noopener noreferrer"
+                startIcon={<TwitterIcon sx={{ color: 'white' }} />}
                 variant="contained"
-                color="error"
-                onClick={onStartScan}
                 sx={{
                   borderRadius: '20px',
                   px: 3,
                   textTransform: 'none',
                   fontWeight: 600,
+                  backgroundColor: '#222222',
+                  color: 'white',
+                  transition: 'all 0.3s ease',
+                  '&:hover': {
+                    backgroundColor: '#000000',
+                    transform: 'scale(1.05)'
+                  }
                 }}
               >
-                {isMobile ? 'Start' : 'Start Scan'}
+                {isMobile ? '@Ethan' : '@EthanLeonard821'}
               </Button>
             </Box>
           </Toolbar>

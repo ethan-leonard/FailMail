@@ -19,6 +19,7 @@ class SnippetDetail(BaseModel):
 class RejectionStats(BaseModel):
     total_rejections: int
     rejections_per_month: Dict[str, int] # e.g., {"2024-01": 5, "2024-02": 3}
+    fang_rejection_count: int
     notable_rejections: List[SnippetDetail]
     user_profile: Optional[UserProfile] = None # To display who is logged in
 

@@ -31,7 +31,7 @@ const LandingPage: React.FC = () => {
     <Box 
       sx={{ 
         minHeight: '100vh',
-        backgroundColor: theme.palette.mode === 'dark' ? '#0a0a0a' : '#ffffff',
+        backgroundColor: '#ffffff',
         color: theme.palette.text.primary,
         // Add extra padding at the top for the fixed navbar
         pt: 8
