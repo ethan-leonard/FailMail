@@ -11,6 +11,7 @@ const RejectionChart: React.FC<RejectionChartProps> = ({ data }) => {
   const theme = useTheme();
   const [animatedData, setAnimatedData] = useState<any[]>([]);
   const [isAnimating, setIsAnimating] = useState(false);
+  const [isInitialLoadComplete, setIsInitialLoadComplete] = useState(false);
 
   // Transform data for chart
   const chartData = useMemo(() => {
@@ -47,6 +48,7 @@ const RejectionChart: React.FC<RejectionChartProps> = ({ data }) => {
   useEffect(() => {
     // Cancel any existing animation when data changes
     setIsAnimating(false);
+    setIsInitialLoadComplete(false);
     
     // Only animate if we have data to show
     if (chartData && chartData.length > 0) {
@@ -59,51 +61,68 @@ const RejectionChart: React.FC<RejectionChartProps> = ({ data }) => {
         rejections: 0
       }));
       
+      // Set initial data with zero values first
       setAnimatedData(initialData);
 
-      // Animate in each bar one by one
-      let currentIndex = 0;
-      
-      const animationInterval = setInterval(() => {
-        if (currentIndex < chartData.length) {
-          setAnimatedData(prev => {
-            // Safely make a copy of previous data
-            const newData = [...prev];
-            
-            // Safety check to ensure the index exists in both arrays
-            if (currentIndex >= 0 && currentIndex < newData.length && 
-                currentIndex < chartData.length && 
-                chartData[currentIndex] && newData[currentIndex]) {
+      // Add small delay to ensure initial render happens with zero values
+      setTimeout(() => {
+        // Animate in each bar one by one
+        let currentIndex = 0;
+        
+        const animationInterval = setInterval(() => {
+          if (currentIndex < chartData.length) {
+            setAnimatedData(prev => {
+              // Create a new copy of the previous data
+              const newData = [...prev];
               
-              // Update the rejection value for this data point
-              newData[currentIndex] = {
-                ...newData[currentIndex],
-                rejections: chartData[currentIndex].rejections
-              };
-            }
+              // Safety check to ensure the index exists in both arrays
+              if (currentIndex >= 0 && currentIndex < newData.length && 
+                  currentIndex < chartData.length) {
+                
+                // Update the rejection value for this data point
+                newData[currentIndex] = {
+                  ...newData[currentIndex],
+                  rejections: chartData[currentIndex].rejections
+                };
+              }
+              
+              return newData;
+            });
             
-            return newData;
-          });
-          
-          currentIndex++;
-        } else {
+            currentIndex++;
+          } else {
+            clearInterval(animationInterval);
+            setIsAnimating(false);
+            setIsInitialLoadComplete(true);
+          }
+        }, 150); // Time between each bar appearing
+        
+        return () => {
           clearInterval(animationInterval);
-          setIsAnimating(false);
-        }
-      }, 150); // Time between each bar appearing
-      
-      return () => {
-        clearInterval(animationInterval);
-        setIsAnimating(false);
-      };
+        };
+      }, 50); // Small delay to ensure the chart renders with zero values first
     } else {
       // If no data, just reset
       setAnimatedData([]);
+      setIsInitialLoadComplete(true);
     }
   }, [chartData]);
 
-  // Use animatedData for the chart, but only if we're animating
-  const displayData = isAnimating && animatedData.length > 0 ? animatedData : chartData;
+  // Use proper data for the chart
+  const displayData = useMemo(() => {
+    if (chartData.length === 0) return [];
+    
+    // During animation or after initial load, use the animated data
+    if (isAnimating || isInitialLoadComplete) {
+      return animatedData.length > 0 ? animatedData : chartData;
+    }
+    
+    // During initial render before animation starts, show zeros
+    return chartData.map(item => ({
+      ...item,
+      rejections: 0
+    }));
+  }, [chartData, animatedData, isAnimating, isInitialLoadComplete]);
 
   return (
     <Card 
@@ -131,7 +150,7 @@ const RejectionChart: React.FC<RejectionChartProps> = ({ data }) => {
         </Typography>
         
         <Box sx={{ height: 300, mt: 2 }}>
-          {displayData && displayData.length > 0 ? (
+          {chartData && chartData.length > 0 ? (
             <ResponsiveContainer width="100%" height="100%">
               <BarChart
                 data={displayData}
@@ -157,6 +176,8 @@ const RejectionChart: React.FC<RejectionChartProps> = ({ data }) => {
                   allowDecimals={false} 
                   tick={{ fontSize: 12 }}
                   stroke={'rgba(0, 0, 0, 0.5)'} 
+                  // Set domain to include the max value from chartData even if we're showing zeros
+                  domain={[0, 'auto']}
                 />
                 <Tooltip 
                   formatter={(value) => [`${value} rejections`, 'Count']}

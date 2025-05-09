@@ -347,7 +347,7 @@ const HallOfShameList: React.FC<HallOfShameListProps> = ({
                             </Typography>
                             <Typography component="span" variant="caption" color="text.secondary">
                               {formatDate(rejection.date)}
-                              {rejection.reason && ` • ${rejection.reason.substring(0, 80)}${rejection.reason.length > 80 ? '...' : ''}`}
+                              {rejection.reason && ` • ${rejection.reason.substring(0, 110)}${rejection.reason.length > 110 ? '...' : ''}`}
                             </Typography>
                           </React.Fragment>
                         }

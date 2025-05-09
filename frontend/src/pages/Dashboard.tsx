@@ -11,8 +11,7 @@ import {
   CircularProgress,
   Alert,
   Paper,
-  useTheme,
-  LinearProgress
+  useTheme
 } from '@mui/material';
 import { motion } from 'framer-motion';
 import StatsCard from '../components/StatsCard';
@@ -67,47 +66,10 @@ const DashboardPage: React.FC = () => {
     performScan,
     setScanData
   } = useGmailScan();
-  const { quote: randomQuote, isLoading: isQuoteLoading, error: quoteError, fetchQuote } = useRandomQuote(false); // Fetch on demand
+  const { quote: randomQuote, isLoading: isQuoteLoading, error: quoteError, fetchQuote } = useRandomQuote(false);
   const [initialScanDone, setInitialScanDone] = useState(false);
   const theme = useTheme();
   
-  // State for scanning progress
-  const [emailsProcessed, setEmailsProcessed] = useState(0);
-  const [totalEmails, setTotalEmails] = useState(0);
-  const [scanProgress, setScanProgress] = useState(0);
-  
-  // Mock the scanning progress with realistic values
-  useEffect(() => {
-    if (isScanLoading) {
-      // Set a random but realistic total number of emails to scan
-      const randomTotalEmails = Math.floor(Math.random() * 1000) + 500;
-      setTotalEmails(randomTotalEmails);
-      setEmailsProcessed(0);
-      setScanProgress(0);
-      
-      // Simulate progress updates
-      const interval = setInterval(() => {
-        setEmailsProcessed(prev => {
-          const increment = Math.floor(Math.random() * 15) + 5; // Random increment between 5-20
-          const newValue = Math.min(prev + increment, randomTotalEmails);
-          
-          // Update progress percentage
-          setScanProgress((newValue / randomTotalEmails) * 100);
-          
-          // If we've reached the total, clear the interval
-          if (newValue >= randomTotalEmails) {
-            clearInterval(interval);
-          }
-          
-          return newValue;
-        });
-      }, 200); // Update every 200ms
-      
-      // Cleanup
-      return () => clearInterval(interval);
-    }
-  }, [isScanLoading]);
-
   // Transform the notable_rejections data to match the expected format
   const formattedNotableRejections = useMemo(() => {
     if (!scanData?.notable_rejections || !Array.isArray(scanData.notable_rejections)) {
@@ -231,15 +193,15 @@ const DashboardPage: React.FC = () => {
     // Perform initial scan only once when component mounts and user is available
     if (user && !initialScanDone && !scanData) {
       performScan();
-      fetchQuote(); // Fetch quote alongside first scan
+      fetchQuote();
       setInitialScanDone(true);
     }
   }, [user, performScan, fetchQuote, initialScanDone, scanData]);
 
   const handleRescan = () => {
-    setScanData(null); // Clear old data
+    setScanData(null);
     performScan();
-    fetchQuote(); // Refresh quote on rescan too
+    fetchQuote();
   }
 
   const mostRecentMonthWithRejections = scanData?.rejections_per_month 
@@ -272,11 +234,6 @@ const DashboardPage: React.FC = () => {
     }
   };
 
-  // Format the progress percentage
-  const formatProgress = (progress: number) => {
-    return `${Math.round(progress)}%`;
-  };
-
   return (
     <Container maxWidth="lg" sx={{ py: 4 }}>
       <motion.div
@@ -285,17 +242,6 @@ const DashboardPage: React.FC = () => {
         transition={{ duration: 0.5 }}
       >
         <Box sx={{ my: 3, textAlign: 'center' }}>
-          {user && (
-            <Typography 
-              variant="h4" 
-              gutterBottom 
-              component="h1" 
-              fontWeight={700}
-              sx={{ mb: 3 }}
-            >
-              Welcome back, {user.name || user.email}!
-            </Typography>
-          )}
           {!scanData && !isScanLoading && !scanError && (
             <Button 
               variant="contained" 
@@ -317,27 +263,6 @@ const DashboardPage: React.FC = () => {
               whileTap={{ scale: 0.95 }}
             >
               {isScanLoading ? <CircularProgress size={24} color="inherit"/> : 'Scan My Gmail for Rejections'}
-            </Button>
-          )}
-          {scanData && (
-            <Button 
-              variant="outlined" 
-              color="error" 
-              onClick={handleRescan} 
-              disabled={isScanLoading} 
-              sx={{
-                mb: 4,
-                py: 1,
-                px: 3,
-                borderRadius: '24px',
-                textTransform: 'none',
-                fontWeight: 600
-              }}
-              component={motion.button}
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-            >
-              {isScanLoading ? <CircularProgress size={24} color="inherit"/> : 'Re-Scan Now'}
             </Button>
           )}
         </Box>
@@ -365,47 +290,29 @@ const DashboardPage: React.FC = () => {
                 border: '1px solid',
                 borderColor: 'divider',
                 textAlign: 'center',
-                mb: 4
+                mb: 4,
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center'
               }}
             >
-              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', mb: 2 }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', mb: 3 }}>
                 <EmailIcon sx={{ color: theme.palette.error.main, fontSize: 40, mr: 1 }} />
                 <Typography variant="h5" fontWeight={600}>
                   Scanning Inbox
                 </Typography>
               </Box>
               
-              <Typography variant="body1" sx={{ mb: 3 }}>
-                Found <AnimatedCounter value={emailsProcessed} suffix="" variant="body1" color="primary.main" fontWeight="bold" /> of 
-                approximately <AnimatedCounter value={totalEmails} suffix="" variant="body1" color="text.secondary" fontWeight="bold" /> emails
-              </Typography>
-              
-              <Box sx={{ position: 'relative', display: 'flex', alignItems: 'center', mb: 1 }}>
-                <Box sx={{ width: '100%', mr: 1 }}>
-                  <LinearProgress 
-                    variant="determinate" 
-                    value={scanProgress} 
-                    color="error"
-                    sx={{ 
-                      height: 8, 
-                      borderRadius: 4,
-                      '& .MuiLinearProgress-bar': {
-                        borderRadius: 4,
-                        transition: 'transform 0.3s ease'
-                      }
-                    }}
-                  />
-                </Box>
-                <Box>
-                  <Typography variant="body2" color="text.secondary">
-                    {formatProgress(scanProgress)}
-                  </Typography>
-                </Box>
-              </Box>
+              <CircularProgress 
+                color="error"
+                size={60}
+                thickness={4}
+                sx={{ mb: 3 }}
+              />
               
               <Typography variant="caption" color="text.secondary">
                 Processing emails, identifying rejections, and extracting patterns.
-                This usually takes 30-60 seconds.
+                If you have a lot of emails, this might a while.
               </Typography>
             </Paper>
           </motion.div>

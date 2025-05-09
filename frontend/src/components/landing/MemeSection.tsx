@@ -38,10 +38,10 @@ const MemeCard: React.FC<{ text: string; emoji: string; index: number }> = ({ te
 
 // List of memes
 const memes = [
-  { text: "When you get 3 rejections in one day", emoji: "😅" },
-  { text: "The 'we'll keep your resume on file' email", emoji: "🗄️" },
-  { text: "The 'unfortunately' opening line", emoji: "💀" },
-  { text: "When they ghost you after 5 interviews", emoji: "👻" },
+  { text: "When the “entry‑level” role wants 10 years of experience", emoji: "🧓" },
+  { text: "The “Dear Candidate” template that forgot my name email", emoji: "🙃" },
+  { text: "Spotting the role reposted the very next day ", emoji: "👀" },
+  { text: "When they ghost you after 5 interviews", emoji: "😭" },
   { text: "Your first FAANG rejection", emoji: "🍎" },
   { text: "The 'we decided to go in a different direction' email", emoji: "🔄" },
   { text: "Opening LinkedIn to see your competition got hired", emoji: "📱" },
@@ -94,7 +94,7 @@ const MemeSection: React.FC = () => {
             viewport={{ once: true, margin: "-100px" }}
           >
             <Typography variant="h3" component="h2" fontWeight={700} gutterBottom>
-              The <GradientText variant="h3" component="span">rejection meme</GradientText> collection
+              The <GradientText variant="h3" component="span">rejection</GradientText> collection
             </Typography>
             <Typography 
               variant="h6" 
