@@ -138,6 +138,14 @@ cd ..
 PYTHONPATH=backend uvicorn backend.main:app --port 8000 --reload
 ```
 
+firebase deploy --only hosting
+
+docker build -t my-failmail-backend .
+
+docker tag my-failmail-backend us-west1-docker.pkg.dev/failmail/failmail-repo/failmail-backend:latest
+
+docker push us-west1-docker.pkg.dev/failmail/failmail-repo/failmail-backend:latest    
+
 The backend API will be available at `http://localhost:8000`.
 
 ### 5. Frontend Setup
