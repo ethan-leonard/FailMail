@@ -10,7 +10,7 @@ from googleapiclient.discovery import build
 from google.oauth2.credentials import Credentials
 from fastapi import HTTPException
 
-from .models import RejectionStats, SnippetDetail, UserProfile
+from models import RejectionStats, SnippetDetail, UserProfile
 
 # --- Constants for Rejection Identification ---
 

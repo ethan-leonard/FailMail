@@ -7,7 +7,7 @@ from google.auth.transport.requests import Request as GoogleAuthRequest
 from google_auth_oauthlib.flow import Flow
 from typing import Optional, Dict, Any
 
-from .models import UserProfile
+from models import UserProfile
 
 # These would be loaded from .env or environment variables
 GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID")

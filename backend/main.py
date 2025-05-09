@@ -7,9 +7,9 @@ from dotenv import load_dotenv
 # Load environment variables from .env file
 load_dotenv(dotenv_path='../.env.example') # For dev, points to root .env.example or .env
 
-from .models import ScanRequest, ScanResponse, ErrorResponse, RandomQuoteResponse, UserProfile
-from .gmail_scanner import scan_gmail_for_rejections
-from .auth import get_user_profile_from_token # Assuming frontend sends access_token
+from models import ScanRequest, ScanResponse, ErrorResponse, RandomQuoteResponse, UserProfile
+from gmail_scanner import scan_gmail_for_rejections
+from auth import get_user_profile_from_token # Assuming frontend sends access_token
 
 # --- Application Setup ---
 app = FastAPI(
@@ -23,7 +23,8 @@ app = FastAPI(
 origins = [
     "http://localhost:5173", # Default Vite dev server
     "http://localhost:3000", # Common React dev server
-    # Add your frontend deployment URL here
+    "https://failmail-57cc8.web.app", # Add your frontend deployment URL here
+    "https://failmail.pro"
 ]
 
 app.add_middleware(
