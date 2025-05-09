@@ -40,7 +40,7 @@ declare global {
   }
 }
 
-const ShareBar: React.FC<ShareBarProps> = ({ targetElementId, userStats }) => {
+const ShareBar: React.FC<ShareBarProps> = ({ userStats }) => {
   const [showAlert, setShowAlert] = useState(false);
   const [alertMessage, setAlertMessage] = useState('');
   const [alertSeverity, setAlertSeverity] = useState<'success' | 'error'>('success');
