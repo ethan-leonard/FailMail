@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { motion, useMotionValue, useTransform, animate, useMotionValueEvent } from 'framer-motion';
+import { useMotionValue, useTransform, animate, useMotionValueEvent } from 'framer-motion';
 import { Typography, Box, TypographyProps } from '@mui/material';
 
 interface AnimatedCounterProps extends Omit<TypographyProps, 'children'> {

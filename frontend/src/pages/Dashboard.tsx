@@ -18,7 +18,6 @@ import StatsCard from '../components/StatsCard';
 import RejectionChart from '../components/RejectionChart';
 import HallOfShameList from '../components/HallOfShameList';
 import ShareBar from '../components/ShareBar';
-import AnimatedCounter from '../components/landing/AnimatedCounter';
 
 // Icons for cards
 import TotalIcon from '@mui/icons-material/Summarize'; // Example icon for total rejections
@@ -26,33 +25,11 @@ import NotableIcon from '@mui/icons-material/StarBorder'; // Example icon for no
 import MoodBadIcon from '@mui/icons-material/MoodBad'; // Generic rejection icon
 import EmailIcon from '@mui/icons-material/Email'; // For email count
 
-// Import interface to match updated Rejection type
-interface Rejection {
-  company: string;
-  position: string;
-  date: string;
-  reason?: string;
-  isTechCompany?: boolean;
-}
-
 // Define SnippetDetail interface to match what the API returns
 interface SnippetDetail {
   sender: string;
   snippet: string;
   isTechCompany?: boolean;
-}
-
-// Define the expected shape of the API response data
-interface RejectionStats {
-  total_rejections: number;
-  rejections_per_month: Record<string, number>;
-  notable_rejections: SnippetDetail[];
-  fang_rejection_count: number;
-  user_profile?: {
-    email: string;
-    name?: string;
-    picture?: string;
-  };
 }
 
 const DASHBOARD_CONTENT_ID = 'dashboard-content-area'; // ID for html2canvas target
@@ -78,12 +55,12 @@ const DashboardPage: React.FC = () => {
     
     return scanData.notable_rejections.map((item: SnippetDetail, index: number) => {
       // Check if the sender is from a tech company based on the email domain
-      const isTechCompany = (item.sender || '').toLowerCase().includes('amazon') || 
-                           (item.sender || '').toLowerCase().includes('microsoft') ||
-                           (item.sender || '').toLowerCase().includes('google') ||
-                           (item.sender || '').toLowerCase().includes('meta') ||
-                           (item.sender || '').toLowerCase().includes('facebook') ||
-                           (item.sender || '').toLowerCase().includes('apple');
+      const techCompanyKeywords = [
+        'meta', 'amazon', 'x.com', 'twitter', 'apple', 'netflix', 'google', 
+        'openai', 'tesla', 'nvidia', 'facebook', 'microsoft'
+      ];
+      const senderLower = (item.sender || '').toLowerCase();
+      const isTechCompany = techCompanyKeywords.some(keyword => senderLower.includes(keyword));
       
       // Assign a realistic date based on the month data we have
       let dateStr = '';
@@ -350,6 +327,11 @@ const DashboardPage: React.FC = () => {
             animate="visible"
           >
             <Grid container spacing={4}>
+              {/* User info for ShareBar extraction - hidden from view */}
+              <div style={{ display: 'none' }} data-user="username">
+                {user?.name || user?.email || 'Anonymous'}
+              </div>
+            
               {/* Stats Cards */}
               <Grid item xs={12} sm={6} md={4}>
                 <motion.div variants={itemVariants}>
@@ -360,6 +342,7 @@ const DashboardPage: React.FC = () => {
                     color={theme.palette.error.main}
                     description="All rejections found."
                     showAnimatedCounter
+                    data-stat="total-rejections"
                   />
                 </motion.div>
               </Grid>
@@ -371,6 +354,7 @@ const DashboardPage: React.FC = () => {
                     icon={<TotalIcon />} 
                     description={`In ${mostRecentMonthWithRejections ? new Date(mostRecentMonthWithRejections).toLocaleString('default', { month: 'long', year: 'numeric' }) : 'the most recent period'}`}
                     showAnimatedCounter
+                    data-stat="monthly-rejections"
                   />
                 </motion.div>
               </Grid>
@@ -446,7 +430,15 @@ const DashboardPage: React.FC = () => {
               </Grid>
             </Grid>
             <motion.div variants={itemVariants}>
-              <ShareBar targetElementId={DASHBOARD_CONTENT_ID} />
+              <ShareBar 
+                targetElementId={DASHBOARD_CONTENT_ID} 
+                userStats={{
+                  username: user?.name || user?.email || 'Anonymous',
+                  totalRejections: scanData.total_rejections || 0,
+                  monthlyRejections: rejectionsThisMonth || 0,
+                  chartDataKey: JSON.stringify(scanData.rejections_per_month || {})
+                }}
+              />
             </motion.div>
           </motion.div>
         </Box>

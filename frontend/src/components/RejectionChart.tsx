@@ -151,7 +151,7 @@ const RejectionChart: React.FC<RejectionChartProps> = ({ data }) => {
         
         <Box sx={{ height: 300, mt: 2 }}>
           {chartData && chartData.length > 0 ? (
-            <ResponsiveContainer width="100%" height="100%">
+            <ResponsiveContainer width="100%" height="100%" className="rejection-chart">
               <BarChart
                 data={displayData}
                 margin={{

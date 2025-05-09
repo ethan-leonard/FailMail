@@ -7,10 +7,11 @@ import { Container, Box, Typography, AppBar, Toolbar, CircularProgress, Avatar, 
 import { createTheme, ThemeProvider } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
 import { useEffect } from 'react';
+import { Link } from 'react-router-dom';
 
 // A component to guard routes that require authentication
 const ProtectedRoute = () => {
-  const { isAuthenticated, isLoading, user } = useAuth();
+  const { isAuthenticated, isLoading } = useAuth();
   const location = useLocation();
 
   if (isLoading) {
@@ -192,12 +193,15 @@ function AppContent() {
           <Toolbar>
             <Typography 
               variant="h6" 
-              component="div" 
+              component={Link}
+              to="/"
               sx={{ 
                 flexGrow: 1,
                 fontWeight: 700,
                 display: 'flex',
-                alignItems: 'center'
+                alignItems: 'center',
+                textDecoration: 'none',
+                color: 'text.primary'
               }}
             >
               <Box 

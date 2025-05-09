@@ -5,7 +5,6 @@ import {
   Grid,
   Typography,
   Paper,
-  useTheme
 } from '@mui/material';
 import { motion } from 'framer-motion';
 import GradientText from './GradientText';
@@ -23,7 +22,6 @@ interface FeatureProps {
 }
 
 const Feature: React.FC<FeatureProps> = ({ title, description, icon, delay = 0 }) => {
-  const theme = useTheme();
   
   return (
     <motion.div

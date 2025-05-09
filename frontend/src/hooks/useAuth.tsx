@@ -1,6 +1,6 @@
 import { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
 import { TokenResponse, googleLogout, useGoogleLogin } from '@react-oauth/google';
-import { jwtDecode } from "jwt-decode"; // To decode ID token for user info
+// To decode ID token for user info
 
 interface AuthContextType {
   isAuthenticated: boolean;
@@ -47,7 +47,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   }, []);
 
   useEffect(() => {
-    let timeoutId: NodeJS.Timeout | undefined;
+    let timeoutId: ReturnType<typeof setTimeout> | undefined;
     if (sessionExpiry) {
       const expiresIn = sessionExpiry - Date.now();
       if (expiresIn > 0) {

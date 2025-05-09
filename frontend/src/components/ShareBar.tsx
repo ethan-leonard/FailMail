@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Box, 
   Button, 
@@ -7,7 +7,6 @@ import {
   Typography, 
   Snackbar, 
   Alert,
-  useTheme
 } from '@mui/material';
 import { motion } from 'framer-motion';
 import html2canvas from 'html2canvas';
@@ -22,6 +21,14 @@ import LinkedInIcon from '@mui/icons-material/LinkedIn';
 interface ShareBarProps {
   /** DOM element ID of the main widget area to capture */
   targetElementId: string;
+  /** User stats to display on the card */
+  userStats?: {
+    username: string;
+    totalRejections: number;
+    monthlyRejections: number;
+    chartData?: any; // Will need proper typing based on your chart data structure
+    chartDataKey?: string; // Added for dependency tracking
+  };
 }
 
 // Add ClipboardItem to the window type
@@ -31,256 +38,280 @@ declare global {
   }
 }
 
-const ShareBar: React.FC<ShareBarProps> = ({ targetElementId }) => {
+const ShareBar: React.FC<ShareBarProps> = ({ targetElementId, userStats }) => {
   const [showAlert, setShowAlert] = useState(false);
   const [alertMessage, setAlertMessage] = useState('');
   const [alertSeverity, setAlertSeverity] = useState<'success' | 'error'>('success');
-  const theme = useTheme();
+  const [cardDataUrl, setCardDataUrl] = useState<string | null>(null);
+  const [isGeneratingCard, setIsGeneratingCard] = useState(false);
 
-  const captureDashboard = (): Promise<string> => {
-    return new Promise((resolve, reject) => {
-      const targetElement = document.getElementById(targetElementId);
-      
-      if (!targetElement) {
-        reject("Target element not found");
-        return;
+  // Extract stat values - props first, then DOM fallback
+  const extractUserStats = () => {
+    const defaultUsername = 'Anonymous';
+    const defaultNumericStat = 0;
+
+    let username = userStats?.username;
+    let totalRejections = userStats?.totalRejections;
+    let monthlyRejections = userStats?.monthlyRejections;
+
+    // Fallback for username if prop is missing or default
+    if (!username || username === defaultUsername) {
+      const usernameElement = document.querySelector('[data-user="username"]');
+      if (usernameElement && usernameElement.textContent && usernameElement.textContent.trim() !== '') {
+        username = usernameElement.textContent.trim();
       }
-      
-      // Find and temporarily hide the ShareBar
-      const shareBarElement = targetElement.querySelector('.share-bar-container');
-      if (shareBarElement) {
-        shareBarElement.classList.add('hidden-for-capture');
-      }
-      
-      html2canvas(targetElement, {
-        allowTaint: true,
-        useCORS: true, 
-        scale: 2, // Higher resolution
-        backgroundColor: '#ffffff',
-        onclone: (clonedDoc) => {
-          // Hide the share bar in the cloned document
-          const clonedShareBar = clonedDoc.querySelector('.share-bar-container');
-          if (clonedShareBar) {
-            (clonedShareBar as HTMLElement).style.display = 'none';
-          }
+    }
+
+    // Fallback for totalRejections if prop is not a valid number
+    if (typeof totalRejections !== 'number') {
+      const card = document.querySelector('[data-stat="total-rejections"]');
+      // The StatsCard renders its value in an h3 tag (or a Typography with variant h3)
+      const valueElement = card?.querySelector('h3'); 
+      if (valueElement && valueElement.textContent) {
+        const value = parseInt(valueElement.textContent.replace(/\D/g, ''));
+        if (!isNaN(value)) {
+          totalRejections = value;
         }
-      }).then(canvas => {
-        // Create a new canvas with padding and rounded corners
-        const paddingX = 40; // Horizontal padding
-        const paddingY = 40; // Padding for the image (no header text in canvas)
-        const cornerRadius = 22; // Increased rounded corners value
+      }
+    }
+
+    // Fallback for monthlyRejections if prop is not a valid number
+    if (typeof monthlyRejections !== 'number') {
+      const card = document.querySelector('[data-stat="monthly-rejections"]');
+      const valueElement = card?.querySelector('h3');
+      if (valueElement && valueElement.textContent) {
+        const value = parseInt(valueElement.textContent.replace(/\D/g, ''));
+        if (!isNaN(value)) {
+          monthlyRejections = value;
+        }
+      }
+    }
+    
+    // Ensure final values are set, defaulting if all sources failed
+    username = username || defaultUsername;
+    totalRejections = typeof totalRejections === 'number' ? totalRejections : defaultNumericStat;
+    monthlyRejections = typeof monthlyRejections === 'number' ? monthlyRejections : defaultNumericStat;
+
+    return { username, totalRejections, monthlyRejections };
+  };
+
+  // Function to create a custom stats card
+  const createStatsCard = async (): Promise<string> => {
+    return new Promise(async (resolve, reject) => {
+      try {
+        setIsGeneratingCard(true);
         
-        const newCanvas = document.createElement('canvas');
-        const ctx = newCanvas.getContext('2d');
+        // Get stats - first from props, fallback to DOM extraction
+        const stats = extractUserStats();
+        
+        // Create canvas
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
         
         if (!ctx) {
           reject("Could not get canvas context");
           return;
         }
         
-        // Set dimensions with padding (no extra space for text)
-        newCanvas.width = canvas.width + (paddingX * 2);
-        newCanvas.height = canvas.height + (paddingY * 2); 
+        // Set card dimensions
+        const cardWidth = 1200;
+        const cardHeight = 800;
+        const cornerRadius = 40;
         
-        // Fill with white background
+        canvas.width = cardWidth;
+        canvas.height = cardHeight;
+        
+        // Draw white background with rounded corners
         ctx.fillStyle = '#ffffff';
-        ctx.fillRect(0, 0, newCanvas.width, newCanvas.height);
+        ctx.beginPath();
+        ctx.moveTo(cornerRadius, 0);
+        ctx.lineTo(cardWidth - cornerRadius, 0);
+        ctx.arcTo(cardWidth, 0, cardWidth, cornerRadius, cornerRadius);
+        ctx.lineTo(cardWidth, cardHeight - cornerRadius);
+        ctx.arcTo(cardWidth, cardHeight, cardWidth - cornerRadius, cardHeight, cornerRadius);
+        ctx.lineTo(cornerRadius, cardHeight);
+        ctx.arcTo(0, cardHeight, 0, cardHeight - cornerRadius, cornerRadius);
+        ctx.lineTo(0, cornerRadius);
+        ctx.arcTo(0, 0, cornerRadius, 0, cornerRadius);
+        ctx.closePath();
+        ctx.fill();
         
-        // Draw original canvas with padding
-        ctx.drawImage(canvas, paddingX, paddingY);
+        // Add subtle border
+        ctx.strokeStyle = '#e0e0e0';
+        ctx.lineWidth = 2;
+        ctx.stroke();
         
-        // Now we need to apply rounded corners
-        // Create a temporary canvas to draw the final image with rounded corners
-        const roundedCanvas = document.createElement('canvas');
-        roundedCanvas.width = newCanvas.width;
-        roundedCanvas.height = newCanvas.height;
-        const roundedCtx = roundedCanvas.getContext('2d');
+        // Draw header section
+        const username = stats.username;
         
-        if (!roundedCtx) {
-          reject("Could not get rounded canvas context");
-          return;
+        // Draw "Username's" in black
+        ctx.font = '850 44px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif';
+        ctx.fillStyle = '#222222';
+        ctx.textAlign = 'left';
+        ctx.textBaseline = 'top';
+        ctx.fillText(`${username}'s`, 40, 40);
+        
+        // Draw "Fail" in red
+        ctx.font = '850 48px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif';
+        ctx.fillStyle = '#FA3149';
+        const usernameWidth = ctx.measureText(`${username}'s `).width;
+        ctx.fillText('Fail', 50 + usernameWidth, 38);
+        
+        // Measure width of "Fail" to position "Mail" right after it
+        const failWidth = ctx.measureText('Fail').width + 20;
+        
+        // Draw "Mail" in black
+        ctx.font = '700 48px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif';
+        ctx.fillStyle = '#222222';
+        ctx.fillText('Mail', 40 + usernameWidth + failWidth - 3, 38);
+        
+        // Add "failmail.pro" in the top right
+        ctx.font = 'italic 600 30px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif';
+        ctx.textAlign = 'right';
+        ctx.fillText('failmail.pro', cardWidth - 40, 46);
+        
+        // Draw stats section
+        // Get rejection data
+        const totalRejections = stats.totalRejections;
+        const monthlyRejections = stats.monthlyRejections;
+        
+        console.log('Creating card with stats:', { username, totalRejections, monthlyRejections });
+        
+        // Draw Total Rejections
+        ctx.textAlign = 'left';
+        ctx.font = '600 36px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif';
+        ctx.fillStyle = '#333333';
+        ctx.fillText('Total Rejections', 80, 160);
+        
+        ctx.font = '800 84px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif';
+        ctx.fillStyle = '#FA3149';
+        ctx.fillText(totalRejections.toString(), 80, 220);
+        
+        // Draw Monthly Rejections
+        ctx.font = '600 36px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif';
+        ctx.fillStyle = '#333333';
+        ctx.fillText('Rejections This Month', 500, 160);
+        
+        ctx.font = '800 84px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif';
+        ctx.fillStyle = '#FA3149';
+        ctx.fillText(monthlyRejections.toString(), 500, 220);
+        
+        // Draw chart
+        // If chart element exists, capture it
+        const chartElement = document.querySelector('.rejection-chart');
+        if (chartElement) {
+          try {
+            // Add a small delay to allow the chart to render, especially if it has animations
+            await new Promise(r => setTimeout(r, 2500)); // Increased delay to 2500ms
+
+            const chartCanvas = await html2canvas(chartElement as HTMLElement, {
+              scale: 2,
+              useCORS: true,
+              allowTaint: true,
+              backgroundColor: '#ffffff' // Explicitly set background for the chart capture part
+            });
+            
+            // Calculate positioning to center the chart in the bottom section
+            const chartWidth = Math.min(chartCanvas.width, cardWidth - 160);
+            const chartHeight = (chartWidth / chartCanvas.width) * chartCanvas.height;
+            const chartX = (cardWidth - chartWidth - 45) / 2;
+            const chartY = 350;
+            
+            ctx.drawImage(
+              chartCanvas, 
+              0, 0, chartCanvas.width, chartCanvas.height,
+              chartX, chartY, chartWidth, chartHeight
+            );
+          } catch (err) {
+            console.error('Error capturing chart:', err);
+            // Draw placeholder text if chart capture fails
+            ctx.font = '500 30px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif';
+            ctx.fillStyle = '#666666';
+            ctx.textAlign = 'center';
+            ctx.fillText('Yearly Rejection Chart', cardWidth / 2, 500);
+          }
+        } else {
+          // Draw placeholder or message when chart isn't available
+          ctx.font = '500 30px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif';
+          ctx.fillStyle = '#666666';
+          ctx.textAlign = 'center';
+          ctx.fillText('Yearly Rejection Chart', cardWidth / 2, 500);
         }
         
-        // Create rounded rectangle path
-        roundedCtx.beginPath();
-        roundedCtx.moveTo(cornerRadius, 0);
-        roundedCtx.lineTo(roundedCanvas.width - cornerRadius, 0);
-        roundedCtx.arcTo(roundedCanvas.width, 0, roundedCanvas.width, cornerRadius, cornerRadius);
-        roundedCtx.lineTo(roundedCanvas.width, roundedCanvas.height - cornerRadius);
-        roundedCtx.arcTo(roundedCanvas.width, roundedCanvas.height, roundedCanvas.width - cornerRadius, roundedCanvas.height, cornerRadius);
-        roundedCtx.lineTo(cornerRadius, roundedCanvas.height);
-        roundedCtx.arcTo(0, roundedCanvas.height, 0, roundedCanvas.height - cornerRadius, cornerRadius);
-        roundedCtx.lineTo(0, cornerRadius);
-        roundedCtx.arcTo(0, 0, cornerRadius, 0, cornerRadius);
-        roundedCtx.closePath();
+        // Add motivational footer
+        ctx.font = '600 24px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif';
+        ctx.fillStyle = '#333333';
+        ctx.textAlign = 'center';
+        ctx.fillText('An inbox full of character development 🥲', cardWidth / 2, cardHeight - 36);
         
-        // Clip to the rounded rectangle and draw the final image
-        roundedCtx.clip();
-        roundedCtx.drawImage(newCanvas, 0, 0);
-        
-        // Return the final image without any text on it
-        resolve(roundedCanvas.toDataURL('image/png'));
-        
-        // Restore visibility of the ShareBar
-        if (shareBarElement) {
-          shareBarElement.classList.remove('hidden-for-capture');
-        }
-      }).catch(err => {
-        // Restore visibility of the ShareBar in case of error
-        if (shareBarElement) {
-          shareBarElement.classList.remove('hidden-for-capture');
-        }
-        reject(err);
-      });
+        // Return data URL of the canvas
+        const dataUrl = canvas.toDataURL('image/png');
+        setCardDataUrl(dataUrl);
+        setIsGeneratingCard(false);
+        resolve(dataUrl);
+      } catch (error) {
+        console.error('Error creating stats card:', error);
+        setIsGeneratingCard(false);
+        reject(error);
+      }
     });
   };
 
+  // Prepare the card when component mounts to avoid delay during download
+  useEffect(() => {
+    // Create the card once when component mounts
+    createStatsCard().then(url => {
+      setCardDataUrl(url);
+    }).catch(err => {
+      console.error('Error pre-generating card:', err);
+    });
+    
+    // Re-create the card whenever userStats changes
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [userStats?.totalRejections, userStats?.monthlyRejections, userStats?.username, userStats?.chartDataKey]);
+
   const downloadImage = async () => {
     try {
-      // Get the screenshot without text
-      const screenshotDataUrl = await captureDashboard();
+      // Use cached card data if available, otherwise generate a new one
+      const cardUrl = cardDataUrl || await createStatsCard();
       
-      // Create a new image to load the screenshot
-      const img = new Image();
-      img.crossOrigin = "Anonymous";
+      // Create download link
+      const link = document.createElement('a');
+      link.download = 'failmail-stats.png';
+      link.href = cardUrl;
+      link.click();
       
-      // When image is loaded, add the text overlay
-      img.onload = () => {
-        // Create a new canvas for the final image with text
-        const finalCanvas = document.createElement('canvas');
-        const finalCtx = finalCanvas.getContext('2d');
-        
-        if (!finalCtx) {
-          console.error("Could not get final canvas context");
-          return;
-        }
-        
-        // Set canvas size to match the screenshot
-        finalCanvas.width = img.width;
-        finalCanvas.height = img.height + 130; // Further increased height for even larger text
-        
-        // Fill with white background
-        finalCtx.fillStyle = '#ffffff';
-        finalCtx.fillRect(0, 0, finalCanvas.width, finalCanvas.height);
-        
-        // Add the FailMail text at the top with extremely large font
-        const textX = 40; // Left padding for text
-        const textY = 75; // Adjusted top position for larger text
-        const fontSize = 84; // Dramatically larger font size
-        
-        // Draw "Fail" in red
-        finalCtx.font = `900 ${fontSize}px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif`;
-        finalCtx.fillStyle = '#FA3149'; // Red color
-        finalCtx.textAlign = 'left';
-        finalCtx.textBaseline = 'middle';
-        finalCtx.fillText('Fail', textX, textY);
-        
-        // Measure width of "Fail" to position "Mail" right after it
-        const failWidth = finalCtx.measureText('Fail').width;
-        
-        // Draw "Mail" in black
-        finalCtx.font = `700 ${fontSize}px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif`;
-        finalCtx.fillStyle = '#222222'; // Dark gray-black
-        finalCtx.fillText('Mail', textX + failWidth - 3, textY);
-        
-        // Draw the screenshot below the text
-        finalCtx.drawImage(img, 0, 130); // Position it below the larger text
-        
-        // Create download link
-        const link = document.createElement('a');
-        link.download = 'failmail-dashboard.png';
-        link.href = finalCanvas.toDataURL('image/png');
-        link.click();
-        
-        showNotification('Dashboard image downloaded successfully!', 'success');
-      };
-      
-      // Set image source to trigger loading
-      img.src = screenshotDataUrl;
-      
+      showNotification('Stats card downloaded successfully!', 'success');
     } catch (error) {
-      console.error('Error downloading image:', error);
-      showNotification('Failed to download image', 'error');
+      console.error('Error downloading stats card:', error);
+      showNotification('Failed to download stats card', 'error');
     }
   };
 
   const copyImageToClipboard = async () => {
     try {
-      // Get the screenshot without text
-      const screenshotDataUrl = await captureDashboard();
-      
-      // Create a new image to load the screenshot
-      const img = new Image();
-      img.crossOrigin = "Anonymous";
-      
-      // When image is loaded, add the text overlay
-      img.onload = async () => {
-        // Create a new canvas for the final image with text
-        const finalCanvas = document.createElement('canvas');
-        const finalCtx = finalCanvas.getContext('2d');
-        
-        if (!finalCtx) {
-          console.error("Could not get final canvas context");
-          return;
-        }
-        
-        // Set canvas size to match the screenshot
-        finalCanvas.width = img.width;
-        finalCanvas.height = img.height; // Further increased height for even larger text
-        
-        // Fill with white background
-        finalCtx.fillStyle = '#ffffff';
-        finalCtx.fillRect(0, 0, finalCanvas.width, finalCanvas.height);
-        
-        // Add the FailMail text at the top with extremely large font
-        const textX = 40; // Left padding for text
-        const textY = 120; // Adjusted top position for larger text
-        const fontSize = 110; // Dramatically larger font size
-        
-        // Draw "Fail" in red
-        finalCtx.font = `900 ${fontSize}px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif`;
-        finalCtx.fillStyle = '#FA3149'; // Red color
-        finalCtx.textAlign = 'left';
-        finalCtx.textBaseline = 'middle';
-        finalCtx.fillText('Fail', textX, textY);
-        
-        // Measure width of "Fail" to position "Mail" right after it
-        const failWidth = finalCtx.measureText('Fail').width;
-        
-        // Draw "Mail" in black
-        finalCtx.font = `700 ${fontSize}px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif`;
-        finalCtx.fillStyle = '#222222'; // Dark gray-black
-        finalCtx.fillText('Mail', textX + failWidth - 3, textY);
-        
-        // Draw the screenshot below the text
-        finalCtx.drawImage(img, 0, 20); // Position it below the larger text
-        
-        // Get final image data
-        const finalDataUrl = finalCanvas.toDataURL('image/png');
+      // Use cached card data if available, otherwise generate a new one
+      const cardUrl = cardDataUrl || await createStatsCard();
         
         // Convert data URL to blob
-        const response = await fetch(finalDataUrl);
+      const response = await fetch(cardUrl);
         const blob = await response.blob();
       
         // Copy to clipboard using Clipboard API if available
         if (navigator.clipboard && navigator.clipboard.write) {
           const item = new window.ClipboardItem({ 'image/png': blob });
           await navigator.clipboard.write([item]);
-          showNotification('Image copied to clipboard!', 'success');
+        showNotification('Stats card copied to clipboard!', 'success');
         } else {
           throw new Error('Clipboard API not supported');
         }
-      };
-      
-      // Set image source to trigger loading
-      img.src = screenshotDataUrl;
-      
     } catch (error) {
       console.error('Error copying to clipboard:', error);
       showNotification('Failed to copy image to clipboard. Try using the download option instead.', 'error');
     }
   };
 
+  // Keeping the existing social media sharing methods
   const shareToTwitter = async () => {
     try {
       const text = "Check out my job rejection stats from FailMail! Embracing failure on my way to success. 💪 #FailMail #JobSearch";
@@ -296,7 +327,7 @@ const ShareBar: React.FC<ShareBarProps> = ({ targetElementId }) => {
 
   const shareToLinkedIn = async () => {
     try {
-      const url = "https://failmail.pr";
+      const url = "https://failmail.pro";
       const linkedInUrl = `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(url)}`;
       window.open(linkedInUrl, '_blank');
     } catch (error) {
@@ -361,8 +392,9 @@ const ShareBar: React.FC<ShareBarProps> = ({ targetElementId }) => {
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
               startIcon={<DownloadIcon />}
+              disabled={isGeneratingCard}
             >
-              Download
+              {isGeneratingCard ? 'Generating...' : 'Download'}
             </Button>
           </Tooltip>
           
@@ -373,6 +405,7 @@ const ShareBar: React.FC<ShareBarProps> = ({ targetElementId }) => {
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
               startIcon={<ContentCopyIcon />}
+              disabled={isGeneratingCard}
             >
               Copy
             </Button>

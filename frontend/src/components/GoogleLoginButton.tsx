@@ -3,7 +3,7 @@ import { Button, CircularProgress, Box } from '@mui/material';
 import GoogleIcon from '@mui/icons-material/Google';
 
 const GoogleLoginButton = () => {
-  const { login, isLoading, error, isAuthenticated } = useAuth();
+  const { login, isLoading, isAuthenticated } = useAuth();
 
   if (isAuthenticated) {
     return null; // Don't show login button if already authenticated

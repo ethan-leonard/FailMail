@@ -36,7 +36,8 @@ REJECTION_KEYWORDS = [
 
 # Domains for FANG and notable companies (Keep as is for now, can be expanded later)
 FANG_DOMAINS = [
-    "google", "amazon", "apple", "meta", "facebook", "microsoft"
+    "meta", "amazon", "x", "apple", "netflix", "google", 
+    "openai", "tesla", "nvidia", "facebook", "microsoft", "twitter"
 ]
 
 # Specific job domains that should be recognized as FANG
@@ -365,22 +366,22 @@ async def scan_gmail_for_rejections(access_token: str, user_profile: UserProfile
         # 3. Count FANG rejections
         fang_rejection_count = sum(1 for r in all_rejection_emails if "FANG" in r["tags"])
         
-        # 4. Get examples for display (up to 5, prioritizing FANG, then Interview rejections)
-        # Sort by FANG > InterviewStage > TemplateFail > Others
-        def get_display_priority(rejection):
-            if "FANG" in rejection["tags"]:
-                return 0
-            elif "InterviewStage" in rejection["tags"]:
-                return 1  
-            elif "TemplateFail" in rejection["tags"]:
-                return 2
-            return 3
+        # 4. Prepare the list of notable rejections (all FANG rejections) for display.
+        # These will be passed as `notable_rejections` to the frontend.
         
-        # Sort and take top 5 for display
-        sorted_for_display = sorted(all_rejection_emails, key=get_display_priority)
+        # Filter to get raw details of all FANG rejections
+        all_fang_rejections_raw_details = [
+            r for r in all_rejection_emails if "FANG" in r["tags"]
+        ]
+        
+        # Sort these FANG rejections by date (most recent first).
+        # Each 'r' in all_fang_rejections_raw_details has a 'date' field which is a datetime object.
+        all_fang_rejections_raw_details.sort(key=lambda x: x["date"], reverse=True)
+        
+        # Create SnippetDetail objects for these FANG rejections
         display_rejections = [
             SnippetDetail(sender=r["sender"], snippet=r["snippet"]) 
-            for r in sorted_for_display[:5]  # Take top 5 for display snippets
+            for r in all_fang_rejections_raw_details
         ]
         
         # Log the counts for verification

@@ -19,7 +19,7 @@ interface NavbarProps {
   onStartScan?: () => void;
 }
 
-const Navbar: React.FC<NavbarProps> = ({ onStartScan }) => {
+const Navbar: React.FC<NavbarProps> = ({ }) => {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
   
@@ -94,7 +94,7 @@ const Navbar: React.FC<NavbarProps> = ({ onStartScan }) => {
                   color: 'white',
                   transition: 'all 0.3s ease',
                   '&:hover': {
-                    backgroundColor: '#000000',
+                    backgroundColor: '#1DA1F2',
                     transform: 'scale(1.05)'
                   }
                 }}
