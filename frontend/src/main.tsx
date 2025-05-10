@@ -5,8 +5,11 @@ import './index.css';
 import { BrowserRouter } from 'react-router-dom';
 import { GoogleOAuthProvider } from '@react-oauth/google';
 import { ThemeProvider, createTheme, CssBaseline } from '@mui/material';
+import { initGoogleAnalytics } from './firebase/analytics';
 
 const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID;
+// Initialize Google Analytics with your measurement ID
+initGoogleAnalytics('G-YW1V93FVGB');
 
 if (!GOOGLE_CLIENT_ID) {
   console.error("FATAL: VITE_GOOGLE_CLIENT_ID is not defined in .env file. Please add it and restart the server.");
