@@ -1,10 +1,9 @@
 import React from 'react';
-import { Box, Typography, Container, useTheme, Paper } from '@mui/material';
+import { Box, Typography, Container, Paper } from '@mui/material';
 import { motion } from 'framer-motion';
 import GradientText from './GradientText';
 
 const VideoSection: React.FC = () => {
-  const theme = useTheme();
 
   return (
     <Box
