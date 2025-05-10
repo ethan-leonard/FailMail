@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { 
   Box, 
   Button, 
-  ButtonGroup, 
   Tooltip, 
   Typography, 
   Snackbar, 
@@ -12,8 +11,6 @@ import {
 } from '@mui/material';
 import { motion } from 'framer-motion';
 import html2canvas from 'html2canvas';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, ResponsiveContainer } from 'recharts';
-
 // Icons
 import ShareIcon from '@mui/icons-material/Share';
 import ContentCopyIcon from '@mui/icons-material/ContentCopy';
@@ -305,7 +302,7 @@ const ShareBar: React.FC<ShareBarProps> = ({ userStats }) => {
                   
                   <!-- X-Axis Lines (tick marks) -->
                   <g class="recharts-cartesian-axis-line">
-                    ${formattedChartData.map((item, i) => {
+                    ${formattedChartData.map((_item, i) => {
                       const x = 50 + ((i + 0.5) * ((950) / formattedChartData.length)); // Wider chart area (950 instead of 900)
                       return `<line x1="${x}" y1="375" x2="${x}" y2="385" stroke="rgba(0,0,0,0.5)" stroke-width="1" />`;
                     }).join('')}
@@ -469,28 +466,27 @@ const ShareBar: React.FC<ShareBarProps> = ({ userStats }) => {
     }
   };
 
-  // Keeping the existing social media sharing methods
-  const shareToTwitter = async () => {
+  // Helper function to prepare image for sharing
+  const prepareShareCard = async () => {
     try {
-      const text = "Check out my job rejection stats from FailMail! Embracing failure on my way to success. 💪 #FailMail #JobSearch";
-      const url = "https://failmail.pro";
+      // Use cached card data if available, otherwise generate a new one
+      const cardUrl = cardDataUrl || await createStatsCard();
+        
+      // Copy to clipboard so user can paste in social media
+      const response = await fetch(cardUrl);
+      const blob = await response.blob();
       
-      const twitterUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}&url=${encodeURIComponent(url)}`;
-      window.open(twitterUrl, '_blank');
+      // Copy to clipboard using Clipboard API if available
+      if (navigator.clipboard && navigator.clipboard.write) {
+        const item = new window.ClipboardItem({ 'image/png': blob });
+        await navigator.clipboard.write([item]);
+        return true;
+      } else {
+        throw new Error('Clipboard API not supported');
+      }
     } catch (error) {
-      console.error('Error sharing to Twitter:', error);
-      showNotification('Failed to share to Twitter', 'error');
-    }
-  };
-
-  const shareToLinkedIn = async () => {
-    try {
-      const url = "https://failmail.pro";
-      const linkedInUrl = `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(url)}`;
-      window.open(linkedInUrl, '_blank');
-    } catch (error) {
-      console.error('Error sharing to LinkedIn:', error);
-      showNotification('Failed to share to LinkedIn', 'error');
+      console.error('Error preparing share card:', error);
+      return false;
     }
   };
 
@@ -502,6 +498,45 @@ const ShareBar: React.FC<ShareBarProps> = ({ userStats }) => {
 
   const handleCloseAlert = () => {
     setShowAlert(false);
+  };
+
+  // Update the Twitter and LinkedIn sharing functions to include the image
+  const shareToTwitter = async () => {
+    try {
+      // Use cached card data if available, otherwise generate a new one
+      await prepareShareCard();
+      
+      const text = "Check out my job rejection stats from FailMail! Embracing failure on my way to success. 💪 #FailMail #JobSearch";
+      const url = "https://failmail.pro";
+      
+      // Note: Twitter doesn't support direct image uploads via web intent
+      // We'll open the Twitter intent without the image and notify the user
+      const twitterUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}&url=${encodeURIComponent(url)}`;
+      window.open(twitterUrl, '_blank');
+      
+      // Notify user to attach the image manually
+      showNotification('Share image has been copied to clipboard - paste it with your tweet!', 'success');
+    } catch (error) {
+      console.error('Error sharing to Twitter:', error);
+      showNotification('Failed to share to Twitter', 'error');
+    }
+  };
+
+  const shareToLinkedIn = async () => {
+    try {
+      // Use cached card data if available, otherwise generate a new one
+      await prepareShareCard();
+      
+      const url = "https://failmail.pro";
+      const linkedInUrl = `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(url)}`;
+      window.open(linkedInUrl, '_blank');
+      
+      // Notify user to attach the image manually
+      showNotification('Share image has been copied to clipboard - paste it with your post!', 'success');
+    } catch (error) {
+      console.error('Error sharing to LinkedIn:', error);
+      showNotification('Failed to share to LinkedIn', 'error');
+    }
   };
 
   return (
@@ -527,30 +562,33 @@ const ShareBar: React.FC<ShareBarProps> = ({ userStats }) => {
           borderColor: 'divider',
         }}
       >
-        <Typography variant="subtitle1" fontWeight={600} sx={{ mr: { xs: 0, sm: 2 } }}>
+        <Typography variant="subtitle1" fontWeight={600} sx={{ mr: { xs: 0, sm: 2 }, mb: { xs: 1, sm: 0 } }}>
           <ShareIcon sx={{ mr: 0.5, verticalAlign: 'middle' }} />
           Share Your Rejection Journey
         </Typography>
         
-        <ButtonGroup 
-          variant="outlined" 
-          size="small" 
-          sx={{ 
-            '& .MuiButton-root': {
-              borderRadius: 2,
-              textTransform: 'none',
-              fontWeight: 500
-            }
-          }}
-        >
+        {/* Replace ButtonGroup with Grid for better mobile layout */}
+        <Box sx={{ 
+          display: 'grid', 
+          gridTemplateColumns: { xs: '1fr 1fr', sm: 'repeat(4, auto)' },
+          gap: 1,
+          width: { xs: '100%', sm: 'auto' }
+        }}>
           <Tooltip title="Download as image">
             <Button 
+              variant="outlined"
+              size="small"
               onClick={downloadImage} 
               component={motion.button}
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
               startIcon={<DownloadIcon />}
               disabled={isGeneratingCard}
+              sx={{ 
+                borderRadius: 2,
+                textTransform: 'none',
+                fontWeight: 500
+              }}
             >
               {isGeneratingCard ? 'Generating...' : 'Download'}
             </Button>
@@ -558,12 +596,19 @@ const ShareBar: React.FC<ShareBarProps> = ({ userStats }) => {
           
           <Tooltip title="Copy to clipboard">
             <Button 
+              variant="outlined"
+              size="small"
               onClick={copyImageToClipboard} 
               component={motion.button}
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
               startIcon={<ContentCopyIcon />}
               disabled={isGeneratingCard}
+              sx={{ 
+                borderRadius: 2,
+                textTransform: 'none',
+                fontWeight: 500
+              }}
             >
               Copy
             </Button>
@@ -571,28 +616,42 @@ const ShareBar: React.FC<ShareBarProps> = ({ userStats }) => {
           
           <Tooltip title="Share to Twitter">
             <Button 
+              variant="outlined"
+              size="small"
               onClick={shareToTwitter} 
               component={motion.button}
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
               startIcon={<TwitterIcon />}
+              sx={{ 
+                borderRadius: 2,
+                textTransform: 'none',
+                fontWeight: 500
+              }}
             >
               Twitter
-      </Button>
+            </Button>
           </Tooltip>
           
           <Tooltip title="Share to LinkedIn">
-        <Button
+            <Button
+              variant="outlined"
+              size="small"
               onClick={shareToLinkedIn} 
               component={motion.button}
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
               startIcon={<LinkedInIcon />}
+              sx={{ 
+                borderRadius: 2,
+                textTransform: 'none',
+                fontWeight: 500
+              }}
             >
               LinkedIn
             </Button>
           </Tooltip>
-        </ButtonGroup>
+        </Box>
       </Box>
       
       <Snackbar open={showAlert} autoHideDuration={5000} onClose={handleCloseAlert}>

@@ -49,7 +49,7 @@ const Hero: React.FC<HeroProps> = ({ onStartScan }) => {
         display: 'flex',
         alignItems: 'center',
         pt: { xs: 12, md: 6 },
-        pb: 6,
+        pb: { xs: 2, md: 3 },
         background: 'linear-gradient(180deg, #f8f9fa 0%, #ffffff 100%)',
       }}
     >

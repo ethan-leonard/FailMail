@@ -6,6 +6,7 @@ import { useAuth } from '../hooks/useAuth';
 // Import landing page components
 import Navbar from '../components/landing/Navbar';
 import Hero from '../components/landing/Hero';
+import VideoSection from '../components/landing/VideoSection';
 import FeatureSection from '../components/landing/FeatureSection';
 import MemeSection from '../components/landing/MemeSection';
 import CTASection from '../components/landing/CTASection';
@@ -42,6 +43,9 @@ const LandingPage: React.FC = () => {
       
       {/* Hero Section */}
       <Hero onStartScan={handleStartScan} />
+      
+      {/* Video Demo Section */}
+      <VideoSection />
       
       {/* Feature Section */}
       <FeatureSection />
