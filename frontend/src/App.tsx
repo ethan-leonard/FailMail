@@ -2,6 +2,8 @@ import { Routes, Route, Navigate, Outlet, useLocation } from 'react-router-dom';
 import { AuthProvider, useAuth } from './hooks/useAuth';
 import DashboardPage from './pages/Dashboard';
 import LandingPage from './pages/LandingPage';
+import PrivacyPolicy from './pages/PrivacyPolicy';
+import TermsOfService from './pages/TermsOfService';
 import GoogleLoginButton from './components/GoogleLoginButton'; // For the login page
 import { Container, Box, Typography, AppBar, Toolbar, CircularProgress, Avatar, Button } from '@mui/material';
 import { createTheme, ThemeProvider } from '@mui/material/styles';
@@ -242,10 +244,13 @@ function AppContent() {
         <Routes>
           <Route path="/" element={<LandingPage />} />
           <Route path="/login" element={<LoginPage />} />
+          <Route path="/privacy" element={<PrivacyPolicy />} />
+          <Route path="/terms" element={<TermsOfService />} />
           <Route element={<ProtectedRoute />}>
             <Route path="/dashboard" element={<DashboardPage />} />
           </Route>
-          {/* Removed the catch-all route to allow landing page access */}
+          {/* Redirects to landing page for unknown routes */}
+          <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </Box>
       

@@ -10,6 +10,7 @@ import VideoSection from '../components/landing/VideoSection';
 import FeatureSection from '../components/landing/FeatureSection';
 import MemeSection from '../components/landing/MemeSection';
 import CTASection from '../components/landing/CTASection';
+import Footer from '../components/landing/Footer';
 
 const LandingPage: React.FC = () => {
   const navigate = useNavigate();
@@ -35,26 +36,33 @@ const LandingPage: React.FC = () => {
         backgroundColor: '#ffffff',
         color: theme.palette.text.primary,
         // Add extra padding at the top for the fixed navbar
-        pt: 8
+        pt: 8,
+        display: 'flex',
+        flexDirection: 'column'
       }}
     >
       {/* Navbar */}
       <Navbar onStartScan={handleStartScan} />
       
-      {/* Hero Section */}
-      <Hero onStartScan={handleStartScan} />
+      <Box sx={{ flexGrow: 1 }}>
+        {/* Hero Section */}
+        <Hero onStartScan={handleStartScan} />
+        
+        {/* Video Demo Section */}
+        <VideoSection />
+        
+        {/* Feature Section */}
+        <FeatureSection />
+        
+        {/* Meme Section */}
+        <MemeSection />
+        
+        {/* Final CTA Section */}
+        <CTASection onStartScan={handleStartScan} />
+      </Box>
       
-      {/* Video Demo Section */}
-      <VideoSection />
-      
-      {/* Feature Section */}
-      <FeatureSection />
-      
-      {/* Meme Section */}
-      <MemeSection />
-      
-      {/* Final CTA Section */}
-      <CTASection onStartScan={handleStartScan} />
+      {/* Footer */}
+      <Footer />
     </Box>
   );
 };
