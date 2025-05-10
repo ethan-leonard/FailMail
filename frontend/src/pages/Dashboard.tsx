@@ -436,6 +436,7 @@ const DashboardPage: React.FC = () => {
                   username: user?.name || user?.email || 'Anonymous',
                   totalRejections: scanData.total_rejections || 0,
                   monthlyRejections: rejectionsThisMonth || 0,
+                  chartData: scanData.rejections_per_month || {},
                   chartDataKey: JSON.stringify(scanData.rejections_per_month || {})
                 }}
               />

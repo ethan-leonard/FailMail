@@ -12,6 +12,7 @@ import {
 } from '@mui/material';
 import { motion } from 'framer-motion';
 import html2canvas from 'html2canvas';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, ResponsiveContainer } from 'recharts';
 
 // Icons
 import ShareIcon from '@mui/icons-material/Share';
@@ -28,7 +29,7 @@ interface ShareBarProps {
     username: string;
     totalRejections: number;
     monthlyRejections: number;
-    chartData?: any; // Will need proper typing based on your chart data structure
+    chartData?: Record<string, number>; // Chart data as an object
     chartDataKey?: string; // Added for dependency tracking
   };
 }
@@ -124,7 +125,11 @@ const ShareBar: React.FC<ShareBarProps> = ({ userStats }) => {
         canvas.height = cardHeight;
         
         // Draw white background with rounded corners
-        ctx.fillStyle = '#ffffff';
+        const gradient = ctx.createLinearGradient(0, 0, cardWidth, cardHeight);
+        gradient.addColorStop(0, '#ffe6e9');  // soft pink
+        gradient.addColorStop(1, '#ffffff');  // to white
+        
+        ctx.fillStyle = gradient;
         ctx.beginPath();
         ctx.moveTo(cornerRadius, 0);
         ctx.lineTo(cardWidth - cornerRadius, 0);
@@ -137,6 +142,23 @@ const ShareBar: React.FC<ShareBarProps> = ({ userStats }) => {
         ctx.arcTo(0, 0, cornerRadius, 0, cornerRadius);
         ctx.closePath();
         ctx.fill();
+        
+        // Add subtle noise texture
+        try {
+          const noise = new Image();
+          noise.src = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAQAAAC1+jfqAAAAMUlEQVR4AWP4//8/Azbw///vz8DAwMiABwyMAQYGAyQZDAwMPQAyXhAIzJIC0OgkQBgAOqAlCy1LyA0AAAAASUVORK5CYII='; // subtle noise
+          
+          await new Promise((resolve, reject) => {
+            noise.onload = resolve;
+            noise.onerror = reject;
+          });
+          
+          ctx.globalAlpha = 0.08; // control texture intensity
+          ctx.drawImage(noise, 0, 0, cardWidth, cardHeight);
+          ctx.globalAlpha = 1.0; // reset
+        } catch (e) {
+          console.log('Noise texture could not be loaded, skipping');
+        }
         
         // Add subtle border
         ctx.strokeStyle = '#e0e0e0';
@@ -198,35 +220,146 @@ const ShareBar: React.FC<ShareBarProps> = ({ userStats }) => {
         ctx.fillStyle = '#FA3149';
         ctx.fillText(monthlyRejections.toString(), 500, 220);
         
-        // Draw chart
-        // If chart element exists, capture it
-        const chartElement = document.querySelector('.rejection-chart');
-        if (chartElement) {
+        // Draw chart - NEW APPROACH
+        // Check if we have chart data to visualize
+        const chartData = userStats?.chartData || getChartDataFromDom();
+        
+        if (chartData && Object.keys(chartData).length > 0) {
           try {
-            // Add a small delay to allow the chart to render, especially if it has animations
-            await new Promise(r => setTimeout(r, 2500)); // Increased delay to 2500ms
+            // Create a temporary div to hold our custom chart
+            const tempChartContainer = document.createElement('div');
+            tempChartContainer.style.position = 'absolute';
+            tempChartContainer.style.left = '-9999px'; // Off screen
+            tempChartContainer.style.width = '1050px';  // Increased width from 1000px to 1050px
+            tempChartContainer.style.height = '450px'; 
+            document.body.appendChild(tempChartContainer);
+            
+            // Parse the chart data into the format expected by Recharts
+            const formattedChartData = Object.entries(chartData)
+              .map(([month, count]) => {
+                // Format date string for display
+                try {
+                  const date = new Date(month);
+                  const formattedMonth = date.toLocaleString('default', { month: 'short', year: '2-digit' });
+                  return {
+                    name: formattedMonth,
+                    rejections: count as number,
+                    month
+                  };
+                } catch (e) {
+                  return {
+                    name: month,
+                    rejections: count as number,
+                    month
+                  };
+                }
+              })
+              .sort((a, b) => a.month.localeCompare(b.month))
+              .slice(-12); // Only show the most recent 12 months, same as in RejectionChart.tsx
+            
+            // Render our fixed-size chart into the temporary container
+            // We'll use ReactDOM.render (or createRoot for React 18+)
+            const tempRoot = document.createElement('div');
+            tempRoot.style.width = '100%';
+            tempRoot.style.height = '100%';
+            tempChartContainer.appendChild(tempRoot);
+            
+            // Dynamically render the chart
+            const chartElement = document.createElement('div');
+            chartElement.style.width = '100%';
+            chartElement.style.height = '100%';
+            tempRoot.appendChild(chartElement);
+            
+            // Find the maximum value for the y-axis
+            const maxValue = Math.max(...formattedChartData.map(item => (item.rejections as number)), 8);
+            const yDomain = [0, Math.ceil(maxValue * 1.2)]; // Add 20% headroom
+            
+            // Render chart directly with DOM
+            chartElement.innerHTML = `
+              <div style="width: 1050px; height: 450px; background-color: transparent;">
+                <svg width="1050" height="450" viewBox="0 0 1050 450" xmlns="http://www.w3.org/2000/svg">
+                  <!-- Main Axes -->
+                  <g class="recharts-cartesian-axes">
+                    <!-- Y-Axis line -->
+                    <line x1="50" y1="25" x2="50" y2="375" stroke="rgba(0,0,0,0.5)" stroke-width="1" />
+                    <!-- X-Axis line -->
+                    <line x1="50" y1="375" x2="1000" y2="375" stroke="rgba(0,0,0,0.5)" stroke-width="1" />
+                  </g>
 
-            const chartCanvas = await html2canvas(chartElement as HTMLElement, {
+                  <!-- Grid Lines -->
+                  <g class="recharts-cartesian-grid">
+                    ${Array.from({ length: 5 }).map((_, i) => {
+                      const y = 25 + (350 - (i * 87.5)); // Adjusted for taller chart (450px)
+                      return `<line x1="50" y1="${y}" x2="1000" y2="${y}" stroke="rgba(0,0,0,0.1)" stroke-dasharray="3 3" />`;
+                    }).join('')}
+                  </g>
+                  
+                  <!-- Y-Axis Labels -->
+                  <g class="recharts-y-axis">
+                    ${Array.from({ length: 5 }).map((_, i) => {
+                      const y = 30 + (350 - (i * 87.5)); // Adjusted for taller chart
+                      const value = Math.round((i * yDomain[1]/4));
+                      return `<text x="40" y="${y}" text-anchor="end" fill="rgba(0,0,0,0.75)" font-size="14" font-weight="600">${value}</text>`;
+                    }).join('')}
+                  </g>
+                  
+                  <!-- X-Axis Lines (tick marks) -->
+                  <g class="recharts-cartesian-axis-line">
+                    ${formattedChartData.map((item, i) => {
+                      const x = 50 + ((i + 0.5) * ((950) / formattedChartData.length)); // Wider chart area (950 instead of 900)
+                      return `<line x1="${x}" y1="375" x2="${x}" y2="385" stroke="rgba(0,0,0,0.5)" stroke-width="1" />`;
+                    }).join('')}
+                  </g>
+                  
+                  <!-- X-Axis Labels -->
+                  <g class="recharts-x-axis">
+                    ${formattedChartData.map((item, i) => {
+                      const x = 50 + ((i + 0.5) * ((950) / formattedChartData.length)); // Wider chart area
+                      return `<text x="${x}" y="410" text-anchor="middle" fill="rgba(0,0,0,0.75)" font-size="14" font-weight="600">${item.name}</text>`;
+                    }).join('')}
+                  </g>
+                  
+                  <!-- Bars -->
+                  <g class="recharts-bar">
+                    ${formattedChartData.map((item, i) => {
+                      const barWidth = Math.min(((950) / formattedChartData.length) - 10, 75); // Wider bars
+                      const x = 50 + ((i + 0.5) * ((950) / formattedChartData.length)) - (barWidth / 2); // Wider chart area
+                      const barHeight = (item.rejections as number / yDomain[1]) * 350; // Adjusted for taller chart
+                      const y = 375 - barHeight; // Adjusted for taller chart
+                      return `<rect x="${x}" y="${y}" width="${barWidth}" height="${barHeight}" rx="4" fill="#FA3149" />`;
+                    }).join('')}
+                  </g>
+                </svg>
+              </div>
+            `;
+            
+            // Wait a bit to ensure everything renders
+            await new Promise(r => setTimeout(r, 100));
+            
+            const chartCanvas = await html2canvas(chartElement, {
               scale: 2,
               useCORS: true,
               allowTaint: true,
-              backgroundColor: '#ffffff' // Explicitly set background for the chart capture part
+              backgroundColor: null
             });
             
-            // Calculate positioning to center the chart in the bottom section
-            const chartWidth = Math.min(chartCanvas.width, cardWidth - 160);
-            const chartHeight = (chartWidth / chartCanvas.width) * chartCanvas.height;
-            const chartX = (cardWidth - chartWidth - 45) / 2;
-            const chartY = 350;
+            // Draw the captured chart onto our card
+            const chartX = (cardWidth - 1050) / 2 + 12; // Center the chart and shift right by 20px
+            const chartY = 330; // Lowered by 10px (from 320 to 330)
             
             ctx.drawImage(
               chartCanvas, 
               0, 0, chartCanvas.width, chartCanvas.height,
-              chartX, chartY, chartWidth, chartHeight
+              chartX, chartY, 1050, 450 
             );
+            
+            // Clean up - remove the temporary elements
+            document.body.removeChild(tempChartContainer);
+            
           } catch (err) {
-            console.error('Error capturing chart:', err);
-            // Draw placeholder text if chart capture fails
+            console.error('Error creating custom chart:', err);
+            
+            // Still draw placeholder if chart creation fails
             ctx.font = '500 30px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif';
             ctx.fillStyle = '#666666';
             ctx.textAlign = 'center';
@@ -257,6 +390,29 @@ const ShareBar: React.FC<ShareBarProps> = ({ userStats }) => {
         reject(error);
       }
     });
+  };
+
+  // Helper function to get chart data from DOM if not provided in props
+  const getChartDataFromDom = () => {
+    try {
+      // Try to find a data-chart attribute in the DOM with stringified chart data
+      const chartDataElement = document.querySelector('[data-chart]');
+      if (chartDataElement && chartDataElement.getAttribute('data-chart')) {
+        return JSON.parse(chartDataElement.getAttribute('data-chart') || '{}');
+      }
+      
+      // Alternatively, look for the props data on Dashboard that would have been passed to RejectionChart
+      const rejectionChart = document.querySelector('.rejection-chart');
+      if (rejectionChart && rejectionChart.hasAttribute('data-chartdata')) {
+        return JSON.parse(rejectionChart.getAttribute('data-chartdata') || '{}');
+      }
+      
+      // If all else fails, return empty object
+      return {};
+    } catch (e) {
+      console.error('Error extracting chart data from DOM:', e);
+      return {};
+    }
   };
 
   // Prepare the card when component mounts to avoid delay during download

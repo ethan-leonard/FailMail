@@ -22,14 +22,13 @@ REJECTION_KEYWORDS = [
     "won\'t be moving forward", "thank you for your interest", "position has been filled",
     "not selected for this role", "unable to offer you a position",
     "appreciate you applying", "pursuing other applicants", "alternative candidates",
-    "filled the position", "not moving forward", "selected another candidate",
-    "different direction", "qualifications more closely match", "will not be extending an offer",
-    "no longer considering your application", "after careful consideration", 
-    "highly competitive", "volume of applications", "wish you success",
-    "best of luck", "encourage you to apply for future openings",
+    "filled the position", "not moving forward", "selected another candidate", 
+    "qualifications more closely match", "will not be extending an offer",
+    "no longer considering your application", 
+    "volume of applications", "wish you success",
+    "encourage you to apply for future openings",
     
     # Potential Interview Stage Rejections (also used in is_rejection)
-    "thank you for taking the time", "enjoyed our conversation", 
     "following your interview", "after your recent interview", "interview process" 
     # TODO: Continue refining this list based on common rejection emails
 ]
@@ -50,8 +49,8 @@ TEMPLATE_FAIL_REGEX = r"({[^}]*}|<INSERT NAME[^>]*>|\[COMPANY NAME\])" # Added c
 
 # Keywords suggesting an interview stage rejection (More focused list for tagging)
 INTERVIEW_KEYWORDS = [
-    "thank you for taking the time to interview", "enjoyed our conversation about your experience",
-    "following your interview", "after your recent interview", "interview process"
+    "thank you for taking the time to interview",
+    "following your interview", "after your recent interview",
 ]
 
 # --- Gmail API query string (Expanded and Refined)

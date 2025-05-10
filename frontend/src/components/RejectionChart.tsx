@@ -149,7 +149,7 @@ const RejectionChart: React.FC<RejectionChartProps> = ({ data }) => {
             : "Your rejection journey over time. Each application is a step forward."}
         </Typography>
         
-        <Box sx={{ height: 300, mt: 2 }}>
+        <Box sx={{ height: 300, mt: 2, }}>
           {chartData && chartData.length > 0 ? (
             <ResponsiveContainer width="100%" height="100%" className="rejection-chart">
               <BarChart
@@ -160,6 +160,7 @@ const RejectionChart: React.FC<RejectionChartProps> = ({ data }) => {
                   left: 0,
                   bottom: 25,
                 }}
+                style={{ backgroundColor: 'transparent' }}
               >
                 <CartesianGrid 
                   strokeDasharray="3 3" 
