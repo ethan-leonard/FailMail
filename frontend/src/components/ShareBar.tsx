@@ -122,11 +122,17 @@ const ShareBar: React.FC<ShareBarProps> = ({ userStats }) => {
         canvas.height = cardHeight;
         
         // Draw white background with rounded corners
+        // Gradient code kept but commented out
+        /*
         const gradient = ctx.createLinearGradient(0, 0, cardWidth, cardHeight);
         gradient.addColorStop(0, '#ffe6e9');  // soft pink
         gradient.addColorStop(1, '#ffffff');  // to white
         
         ctx.fillStyle = gradient;
+        */
+        
+        // Use solid white background instead
+        ctx.fillStyle = '#ffffff';
         ctx.beginPath();
         ctx.moveTo(cornerRadius, 0);
         ctx.lineTo(cardWidth - cornerRadius, 0);
