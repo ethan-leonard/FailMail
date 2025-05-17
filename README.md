@@ -1,202 +1,221 @@
-# FailMail - Rejection Dashboard MVP
+# FailMail - Rejection Email Tracking Dashboard
 
-This project is a Minimum Viable Product for the Rejection Dashboard, a web application that helps users track and analyze job rejection emails from their Gmail account, running within the FailMail monorepo.
+![Python](https://img.shields.io/badge/python-3.12-green.svg) ![FastAPI](https://img.shields.io/badge/fastapi-0.115-blue.svg) ![React](https://img.shields.io/badge/react-18.0-61DAFB.svg) ![TypeScript](https://img.shields.io/badge/typescript-4.9-blue.svg)
 
-## Features
+## Overview
 
-*   **Google Sign-In**: Securely authenticate using your Google account (Gmail OAuth).
-*   **Session-Only Scan**: Scans your inbox for job rejections *during the current session only*.
-*   **Rejection Statistics**:
-    *   Total number of rejections.
-    *   Histogram of rejections per calendar month.
-    *   List of "notable" rejections (e.g., FANG, template fails, interview stage).
-*   **Privacy First**: **No raw email data is stored on any server.** Only derived statistics and short snippets are processed in memory.
-*   **Interactive Dashboard**: View your stats on a React-based dashboard featuring:
-    *   Summary card widgets.
-    *   A Chart.js bar chart for monthly counts.
-    *   A "Hall of Shame" for notable rejections.
-    *   A random motivational quote.
-*   **Shareable Stats**: Export a PNG of your dashboard or share it using the Web Share API.
-*   **Responsive Design**: Mobile-friendly (minimum 360px width) and dark-mode aware.
+FailMail is a completed web application that helps users track and analyze job rejection emails from their Gmail account. This tool allows job seekers to visualize their job search journey, turning rejection emails into meaningful insights and statistics.
 
-## Tech Stack
+## Video Demo
 
-*   **Backend**: Python 3.12, FastAPI, Uvicorn, Pydantic
-*   **Frontend**: TypeScript, React 18, Vite, Material-UI (MUI)
-*   **Authentication**: Google OAuth 2.0 (PKCE flow handled client-side)
-*   **API Communication**: Async (FastAPI, aiohttp for Google API calls if needed by `google-api-python-client`)
-*   **Charting**: Chart.js (via `react-chartjs-2`)
+[![Video Demo](https://img.youtube.com/vi/dIV5boeQhrU/maxresdefault.jpg)](https://youtu.be/dIV5boeQhrU)
+
+## Key Features
+
+- **Google Sign-In**: Secure authentication using Google account (Gmail OAuth)
+- **Privacy-First Design**: No raw email data is stored on any server
+- **Session-Only Scanning**: Analyzes your inbox during the current session only
+- **Detailed Analytics**: 
+  - Total number of rejections
+  - Monthly rejection histogram
+  - "Hall of Shame" for notable rejections (FAANG companies, etc.)
+- **Interactive Dashboard**: Clean, responsive UI with modern design patterns
+- **Shareable Stats**: Export dashboard as PNG or share via Web Share API
+- **Dark Mode Support**: Automatic theme detection and seamless transitions
+
+## Architecture
+
+FailMail follows a modern client-server architecture with these key components:
+
+### Backend (Python FastAPI)
+
+- RESTful API endpoints using FastAPI
+- Gmail API integration for secure email scanning
+- Google OAuth token validation
+- Stateless design (no persistent data storage)
+- Docker containerization for deployment
+
+### Frontend (React TypeScript)
+
+- React 18 with TypeScript for type safety
+- Material-UI (MUI) components
+- Chart.js for data visualization
+- Firebase hosting for production deployment
+- Responsive design for all device sizes
 
 ## Project Structure
 
-```
+```plaintext
 FailMail/
-  backend/                # FastAPI application
-    main.py               # Main FastAPI app, defines endpoints
-    auth.py               # Google OAuth related logic (token validation stub)
-    gmail_scanner.py      # Logic for scanning Gmail and extracting stats
-    models.py             # Pydantic models for data validation
-    requirements.txt      # Python dependencies
-  frontend/               # React (Vite + TypeScript) application
-    src/
-      components/         # Reusable UI components
-      pages/              # Page components (e.g., Dashboard)
-      hooks/              # Custom React hooks (e.g., useAuth, useGmailScan)
-      App.tsx             # Main application component with routing
-      main.tsx            # Entry point for the React app
-      index.css           # Global styles, dark mode
-      vite-env.d.ts       # Vite environment variable typings
-    index.html            # Main HTML file for Vite
-    package.json          # Node.js dependencies and scripts
-    vite.config.ts        # Vite configuration
-    tsconfig.json         # TypeScript configuration
-    tsconfig.node.json    # TypeScript Node configuration (for Vite config)
-  README.md               # This file
-  start-app.sh          # Script to run both servers
+├── backend/                       # FastAPI backend
+│   ├── main.py                    # Main API endpoints
+│   ├── auth.py                    # Google OAuth validation
+│   ├── gmail_scanner.py           # Email analysis logic
+│   ├── models.py                  # Pydantic data models
+│   ├── Dockerfile                 # Container configuration
+│   └── requirements.txt           # Python dependencies
+│
+├── frontend/                      # React frontend
+│   ├── public/                    # Static assets
+│   ├── src/
+│   │   ├── components/            # UI components
+│   │   │   └── landing/           # Landing page components
+│   │   ├── firebase/              # Firebase configuration
+│   │   ├── hooks/                 # Custom React hooks
+│   │   ├── pages/                 # Page components
+│   │   ├── App.tsx                # Main application
+│   │   └── main.tsx               # Entry point
+│   ├── package.json               # Node.js dependencies
+│   └── firebase.json              # Firebase configuration
+│
+├── start-app.sh                   # Development startup script
+└── README.md                      # This file
 ```
 
-## Setup and Running Locally
+## Technical Implementation
 
-### 1. Prerequisites
+### Backend Implementation
 
-*   Node.js (v18 or later recommended) and npm
-*   Python 3.10 or later (3.12 specified in prompt) and pip
-*   Google Cloud Platform Account
+The backend service handles:
 
-### 2. Google Cloud Console Setup
+1. **Google OAuth Validation**: Verifies user tokens for authenticated API access
+2. **Gmail API Processing**: Securely searches and analyzes email content
+3. **Pattern Recognition**: Identifies rejection emails using keyword analysis
+4. **Data Processing**: Transforms email data into statistical insights
+5. **Privacy Protection**: Processes data in-memory only with no persistence
 
-1.  **Create a new project** in the [Google Cloud Console](https://console.cloud.google.com/).
-2.  **Enable the Gmail API**:
-    *   Navigate to "APIs & Services" > "Library".
-    *   Search for "Gmail API" and enable it.
-3.  **Configure OAuth Consent Screen**:
-    *   Navigate to "APIs & Services" > "OAuth consent screen".
-    *   Choose "External" user type.
-    *   Fill in the required app information (app name, user support email, developer contact).
-    *   **Scopes**: Add the following scopes:
-        *   `../auth/gmail.readonly` (View your email messages and settings)
-        *   `../auth/userinfo.email` (View your email address)
-        *   `../auth/userinfo.profile` (See your personal info, including any personal info you've made publicly available)
-    *   **Test Users**: Add your Google account(s) to the list of test users. Since the app will be in "Testing" status, only these users can log in (max 100 users).
-4.  **Create OAuth 2.0 Client ID**:
-    *   Navigate to "APIs & Services" > "Credentials".
-    *   Click "+ CREATE CREDENTIALS" > "OAuth client ID".
-    *   Select "Web application" as the application type.
-    *   Give it a name (e.g., "Rejection Dashboard Web Client").
-    *   **Authorized JavaScript origins**: Add your frontend development URL. For Vite's default, this is `http://localhost:5173`.
-    *   **Authorized redirect URIs**: Add the URI where Google will redirect after authentication. For `useGoogleLogin` from `@react-oauth/google` with PKCE, this is typically your app's base URL or a specific callback path handled by the client. For development: `http://localhost:5173` (the library handles the redirect path itself within this origin).
-        *   *Note*: When deploying, add your production frontend URLs here.
-    *   Click "Create". Copy the **Client ID**. You will need this for the frontend.
+### Frontend Implementation
 
-### 3. Environment Variables
+The client application provides:
 
-Create a `.env` file in the `rejection-dashboard/frontend/` directory with your Google Client ID:
+1. **Authentication Flow**: Manages Google OAuth login process
+2. **Interactive Dashboard**: Visualizes rejection statistics
+3. **Responsive Design**: Adapts to various screen sizes
+4. **Theme Management**: Supports light and dark modes
+5. **Data Visualization**: Charts showing rejection trends over time
 
-```env
-# rejection-dashboard/frontend/.env
+## Getting Started
 
-# Critical for frontend OAuth flow (obtained from Google Cloud Console)
-VITE_GOOGLE_CLIENT_ID="YOUR_WEB_APPLICATION_CLIENT_ID_HERE"
+### Prerequisites
 
-# Base URL for the backend API (defaults to http://localhost:8000 in hooks if not set)
-VITE_API_BASE_URL="http://localhost:8000"
-```
+- Python 3.10 or later
+- Node.js 18 or later
+- Google Cloud Platform account
+- Gmail account
 
-*(Optional)* If you need to configure backend-specific Google credentials (e.g., if `auth.py` were to use a client secret for server-to-server validation, which is not the primary flow for this PKCE-based MVP), you would create a `.env` file in `rejection-dashboard/backend/`:
+### Google Cloud Setup
 
-```env
-# rejection-dashboard/backend/.env (Example, less critical for this PKCE MVP)
+1. Create a new project in the [Google Cloud Console](https://console.cloud.google.com/)
+2. Enable the Gmail API
+3. Configure OAuth consent screen (External user type)
+4. Add scopes:
+   - `../auth/gmail.readonly`
+   - `../auth/userinfo.email`
+   - `../auth/userinfo.profile`
+5. Create OAuth 2.0 Client ID for web application
+6. Add authorized JavaScript origins and redirect URIs
 
-# GOOGLE_CLIENT_ID="YOUR_BACKEND_SPECIFIC_GOOGLE_CLIENT_ID_IF_ANY"
-# GOOGLE_CLIENT_SECRET="YOUR_GOOGLE_CLIENT_SECRET_IF_ANY"
-```
-
-### 4. Backend Setup
+### Local Development Setup
 
 ```bash
-# Navigate to the backend directory (from FailMail/)
+# Clone the repository
+git clone https://github.com/yourusername/FailMail.git
+cd FailMail
+
+# Set up environment variables
+# Create frontend/.env with:
+# VITE_GOOGLE_CLIENT_ID="YOUR_CLIENT_ID"
+# VITE_API_BASE_URL="http://localhost:8000"
+
+# Backend setup
 cd backend
-
-# Create a virtual environment (recommended)
-python -m venv venv # Or python3 -m venv venv
-
-# Activate the virtual environment
-# On Windows:
-# venv\Scripts\activate
-# On macOS/Linux:
-source venv/bin/activate
-
-# Install dependencies (while in backend/ and venv is active)
+python -m venv venv
+source venv/bin/activate  # On Windows: venv\Scripts\activate
 pip install -r requirements.txt
+cd ..
 
-# IMPORTANT: Navigate back to the project root directory (FailMail/) to run the server
-cd .. 
+# Frontend setup
+cd frontend
+npm install
+cd ..
 
-# Run the FastAPI development server from the PROJECT ROOT (FailMail/)
-# Make sure your virtual environment (created in backend/venv) is active.
-# If not, activate it from the root: source backend/venv/bin/activate
-PYTHONPATH=backend uvicorn backend.main:app --port 8000 --reload
+# Start both servers with the convenience script
+chmod +x start-app.sh
+./start-app.sh
 ```
 
-firebase deploy --only hosting
+The script will start:
+- Backend at http://localhost:8000
+- Frontend at http://localhost:5173
 
-docker build -t my-failmail-backend .
+### Docker Deployment
 
-docker tag my-failmail-backend us-west1-docker.pkg.dev/failmail/failmail-repo/failmail-backend:latest
-
-docker push us-west1-docker.pkg.dev/failmail/failmail-repo/failmail-backend:latest    
-
-The backend API will be available at `http://localhost:8000`.
-
-### 5. Frontend Setup
+The backend includes a Dockerfile for containerized deployment:
 
 ```bash
-# Navigate to the frontend directory (from FailMail/)
-cd frontend
+# Build container
+cd backend
+docker build -t failmail-backend .
 
-# Install dependencies
-npm install
-
-# Run the Vite development server
-npm run dev
+# Push to registry (example for Google Artifact Registry)
+docker tag failmail-backend us-west1-docker.pkg.dev/failmail/failmail-repo/failmail-backend:latest
+docker push us-west1-docker.pkg.dev/failmail/failmail-repo/failmail-backend:latest
 ```
 
-The frontend application will be available at `http://localhost:5173`.
+The frontend can be deployed to Firebase Hosting:
 
-### 6. Usage
+```bash
+cd frontend
+npm run build
+firebase deploy --only hosting
+```
 
-1.  Open your browser and go to `http://localhost:5173`.
-2.  Click "Sign in with Google" and authenticate with a Google account that you added as a test user in the Google Cloud Console.
-3.  Once logged in, the dashboard will appear.
-4.  Click "Scan My Gmail for Rejections" (or similar button) to initiate the scan.
-5.  View your rejection statistics!
+## Usage Flow
+
+1. Visit the FailMail website
+2. Click "Sign in with Google"
+3. Grant necessary permissions
+4. After authentication, the dashboard appears
+5. Click "Scan My Gmail" to analyze your inbox
+6. View your rejection statistics and insights
+7. Optionally export or share your dashboard
 
 ## Privacy Statement
 
-This application prioritizes your privacy:
+FailMail prioritizes your privacy:
 
-*   **No Data Storage**: The Rejection Dashboard **does not store any of your raw email content or personal data** on any server or database. All processing of email headers and snippets to derive statistics happens in memory during your active session.
-*   **Session-Limited Tokens**: OAuth tokens granted to this application are intended for use only during the current session. The application is designed to work without persistent storage of tokens.
-*   **Read-Only Access**: The application requests `gmail.readonly` permission, meaning it can only read email metadata and content. It cannot send, delete, or modify any emails or your Gmail settings.
-*   **Limited Scope**: Access is requested only for Gmail, email, and profile scopes necessary for the application's functionality.
+- **Zero Data Storage**: No email content is stored on any server
+- **In-Memory Processing**: All analysis happens during your active session
+- **Read-Only Access**: The application cannot modify your emails
+- **Limited Scope**: Only the minimum required permissions are requested
+- **Session-Limited Tokens**: Authentication tokens are not persisted
 
-## Known Limitations (MVP)
+## Technologies Used
 
-*   **100 Test Users**: As the Google OAuth client is in "Testing" status (to avoid the lengthy verification process for an MVP), only up to 100 registered test users can use the application.
-*   **Basic Rejection Keywords**: The initial set of keywords for identifying rejection emails is basic and may not catch all rejections or might have false positives. This can be expanded.
-*   **Error Handling**: While basic error handling is in place, it can be made more robust.
-*   **Token Refresh**: The current MVP relies on the initial access token being valid for the session. Full refresh token handling on the backend (if the frontend were to send an auth code) is not implemented to keep the client-side PKCE simple for the MVP.
-*   **Gmail API Quotas**: Heavy or frequent use by many users could potentially hit Gmail API quota limits. This is unlikely for an MVP with limited users.
-*   **Date Range for Scan**: The Gmail query for scanning emails currently uses a fixed `after:2024/01/01` date. This could be made configurable.
+### Backend
+- Python 3.12
+- FastAPI
+- Uvicorn
+- Pydantic
+- Google API Client Library
+- Docker
 
-## TODOs / Future Enhancements
+### Frontend
+- TypeScript
+- React 18
+- Vite
+- Material-UI (MUI)
+- Chart.js
+- Firebase Hosting
 
-*   More sophisticated rejection detection (NLP, machine learning).
-*   User-configurable scan parameters (date range, custom keywords).
-*   More detailed analytics and visualizations.
-*   Allow users to manually tag or correct identified rejections.
-*   Full Google OAuth verification to remove the 100-user limit.
-*   More robust server-side token validation and refresh mechanisms if needed.
-*   Expand lists for FANG domains, template fail regex, and interview keywords.
-*   Implement the actual Google userinfo call in `backend/auth.py` instead of the stub.
-*   Refine UI/UX details (e.g., loading states, empty states, theme customization).
+## License
+
+This project is available under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+## Contact
+
+For questions or support, please open an issue on the GitHub repository.
+
+---
+
+**Note**: FailMail is a complete project ready for use. The application enables users to gain insights from their job search journey by analyzing rejection emails in a privacy-focused manner.
